@@ -59,7 +59,7 @@ export default function LoginPage() {
     return (
         <div className="login-container">
             <div className="login-card">
-                <h1 style={{ textAlign: 'center' }}>ECC<br /><span style={{ fontSize: '0.6em' }}>in</span><br />Tokushima</h1>
+                <h1 style={{ textAlign: 'center', lineHeight: '1.1' }}>ECC<br />in<br />Tokushima</h1>
                 <p className="subtitle">ログインして最新のお知らせをチェック！</p>
 
                 {error && <div className="error-message show">{error}</div>}

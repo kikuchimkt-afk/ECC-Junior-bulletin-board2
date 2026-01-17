@@ -283,10 +283,10 @@ export default function AdminPage() {
 
     const getActionLabel = (action) => {
         switch (action) {
-            case 'login': return '🔓';
-            case 'logout': return '🔒';
-            case 'view_pdf': return '📄';
-            case 'login_failed': return '❌';
+            case 'login': return '🔓 ログイン';
+            case 'logout': return '🔒 ログアウト';
+            case 'view_pdf': return '📄 PDF閲覧';
+            case 'login_failed': return '❌ 失敗';
             default: return action;
         }
     };
@@ -415,9 +415,12 @@ export default function AdminPage() {
                         {logs.length === 0 ? <p style={{ textAlign: 'center' }}>ログがありません</p> : (
                             logs.map((log, index) => (
                                 <div key={index} className="log-item">
-                                    <span className="log-action">{getActionLabel(log.action)}</span>
-                                    <span className="log-user">{getUserName(log.userId)}</span>
-                                    <span className="log-time">{formatDate(log.timestamp)}</span>
+                                    <div className="log-main">
+                                        <span className="log-action">{getActionLabel(log.action)}</span>
+                                        <span className="log-user">{getUserName(log.userId)}</span>
+                                        <span className="log-time">{formatDate(log.timestamp)}</span>
+                                    </div>
+                                    {log.details && <div className="log-details">{log.details}</div>}
                                 </div>
                             ))
                         )}

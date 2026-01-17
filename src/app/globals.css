@@ -1035,27 +1035,34 @@ body {
     color: white;
 }
 
-/* ===== Log List (Mobile) ===== */
+/* ===== Log List ===== */
 .log-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    max-height: 400px;
+    gap: 8px;
+    max-height: 500px;
     overflow-y: auto;
 }
 
 .log-item {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 12px;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 14px;
     background: var(--accent-lavender);
     border-radius: var(--border-radius-sm);
     font-size: 0.85rem;
 }
 
+.log-main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
 .log-action {
-    font-size: 1.2rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
 }
 
 .log-user {
@@ -1066,6 +1073,14 @@ body {
 .log-time {
     color: var(--text-secondary);
     font-size: 0.75rem;
+}
+
+.log-details {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    padding-left: 10px;
+    border-left: 2px solid var(--primary-pink);
+    margin-top: 4px;
 }
 
 /* ===== PDF Icon ===== */

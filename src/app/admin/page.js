@@ -273,6 +273,98 @@ export default function AdminPage() {
         }
     };
 
+    // CSVテンプレートダウンロード
+    const downloadUserTemplate = () => {
+        const bom = '\uFEFF';
+        const headers = ['ユーザーID', 'パスワード', '名前'];
+        const example = ['user003', 'pass003', '山田 花子'];
+        const csvContent = bom + [headers, example].map(row => row.join(',')).join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'user_template.csv';
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    // CSVインポート
+    const handleUserCSVImport = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const text = event.target.result;
+                const lines = text.split(/\r?\n/).filter(line => line.trim());
+
+                if (lines.length < 2) {
+                    alert('データがありません。ヘッダー行とデータ行が必要です。');
+                    return;
+                }
+
+                // ヘッダー行をスキップ
+                const dataLines = lines.slice(1);
+                let successCount = 0;
+                let errorCount = 0;
+                const errors = [];
+
+                for (const line of dataLines) {
+                    // CSVパース（カンマ区切り、ダブルクォート対応）
+                    const parts = line.match(/("[^"]*"|[^,]+)/g)?.map(p => p.replace(/^"|"$/g, '').trim()) || [];
+
+                    if (parts.length < 3) {
+                        errorCount++;
+                        errors.push(`無効な行: ${line}`);
+                        continue;
+                    }
+
+                    const [id, password, name] = parts;
+
+                    if (!id || !password || !name) {
+                        errorCount++;
+                        errors.push(`必須項目が空: ${line}`);
+                        continue;
+                    }
+
+                    try {
+                        const response = await fetch('/api/users', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id, password, name, isAdmin: false })
+                        });
+
+                        if (response.ok) {
+                            successCount++;
+                        } else {
+                            const result = await response.json();
+                            errorCount++;
+                            errors.push(`${id}: ${result.error}`);
+                        }
+                    } catch (err) {
+                        errorCount++;
+                        errors.push(`${id}: エラー`);
+                    }
+                }
+
+                let message = `インポート完了\n成功: ${successCount}件`;
+                if (errorCount > 0) {
+                    message += `\n失敗: ${errorCount}件\n\n${errors.slice(0, 5).join('\n')}`;
+                    if (errors.length > 5) message += `\n...他${errors.length - 5}件`;
+                }
+                alert(message);
+                loadUsers();
+            } catch (error) {
+                console.error('CSV import error:', error);
+                alert('CSVの読み込みに失敗しました');
+            }
+        };
+        reader.readAsText(file, 'UTF-8');
+        e.target.value = ''; // リセット
+    };
+
     // ========== ログ関連 ==========
 
     const clearLogs = async () => {
@@ -404,7 +496,14 @@ export default function AdminPage() {
             {activeTab === 'users' && (
                 <div className="admin-card">
                     <h3>👥 ユーザー一覧（サーバー保存）</h3>
-                    <button className="btn btn-primary btn-small" onClick={openAddUserModal} style={{ marginBottom: '20px' }}>＋ 新しいユーザーを登録</button>
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <button className="btn btn-primary btn-small" onClick={openAddUserModal}>＋ 新しいユーザーを登録</button>
+                        <button className="btn btn-secondary btn-small" onClick={downloadUserTemplate}>📄 CSVテンプレート</button>
+                        <label className="btn btn-secondary btn-small" style={{ cursor: 'pointer', margin: 0 }}>
+                            📥 CSV一括登録
+                            <input type="file" accept=".csv" onChange={handleUserCSVImport} style={{ display: 'none' }} />
+                        </label>
+                    </div>
                     <div style={{ overflowX: 'auto' }}>
                         <table className="data-table">
                             <thead><tr><th>ユーザーID</th><th>名前</th><th>権限</th><th>操作</th></tr></thead>

@@ -23,14 +23,15 @@ export default function AdminPage() {
     const [formTitle, setFormTitle] = useState('');
     const [formPdfUrl, setFormPdfUrl] = useState('');
     const [selectedFileName, setSelectedFileName] = useState('');
-    const [formSchools, setFormSchools] = useState([]); // 教室タグ
+    const [formSchools, setFormSchools] = useState([]);
 
     // ユーザーフォーム状態
     const [userFormId, setUserFormId] = useState('');
     const [userFormPassword, setUserFormPassword] = useState('');
     const [userFormName, setUserFormName] = useState('');
     const [userFormIsAdmin, setUserFormIsAdmin] = useState(false);
-    const [userFormSchools, setUserFormSchools] = useState([]); // 所属教室
+    const [userFormIsTeacher, setUserFormIsTeacher] = useState(false); // 講師フラグ
+    const [userFormSchools, setUserFormSchools] = useState([]);
 
     useEffect(() => {
         const sessionData = sessionStorage.getItem('ecc_session');
@@ -124,7 +125,7 @@ export default function AdminPage() {
             if (!response.ok) throw new Error('Upload failed');
             const result = await response.json();
             setFormPdfUrl(result.url);
-            setSelectedFileName(`✅ ${file.name} (アップロード完了)`);
+            setSelectedFileName(`✅ ${file.name}`);
         } catch (error) { console.error('Upload error:', error); alert('アップロードに失敗しました'); setSelectedFileName(''); }
         finally { setUploading(false); }
     };
@@ -163,6 +164,7 @@ export default function AdminPage() {
         setUserFormPassword('');
         setUserFormName('');
         setUserFormIsAdmin(false);
+        setUserFormIsTeacher(false);
         setUserFormSchools([]);
         setShowUserModal(true);
     };
@@ -173,6 +175,7 @@ export default function AdminPage() {
         setUserFormPassword('');
         setUserFormName(user.name);
         setUserFormIsAdmin(user.isAdmin);
+        setUserFormIsTeacher(user.isTeacher || false);
         setUserFormSchools(user.schools || []);
         setShowUserModal(true);
     };
@@ -193,13 +196,13 @@ export default function AdminPage() {
             if (editingUser) {
                 const response = await fetch(`/api/users/${userFormId}`, {
                     method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password: userFormPassword || undefined, name: userFormName, isAdmin: userFormIsAdmin, schools: userFormSchools })
+                    body: JSON.stringify({ password: userFormPassword || undefined, name: userFormName, isAdmin: userFormIsAdmin, isTeacher: userFormIsTeacher, schools: userFormSchools })
                 });
                 if (!response.ok) { const result = await response.json(); alert(result.error || '更新に失敗しました'); return; }
             } else {
                 const response = await fetch('/api/users', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: userFormId, password: userFormPassword, name: userFormName, isAdmin: userFormIsAdmin, schools: userFormSchools })
+                    body: JSON.stringify({ id: userFormId, password: userFormPassword, name: userFormName, isAdmin: userFormIsAdmin, isTeacher: userFormIsTeacher, schools: userFormSchools })
                 });
                 if (!response.ok) { const result = await response.json(); alert(result.error || '登録に失敗しました'); return; }
             }
@@ -218,8 +221,8 @@ export default function AdminPage() {
     // CSVテンプレート
     const downloadUserTemplate = () => {
         const bom = '\uFEFF';
-        const headers = ['ユーザーID', 'パスワード', '名前', '所属教室（カンマ区切り）'];
-        const example = ['user003', 'pass003', '山田 花子', 'aizumi-jr,aizumi-bo'];
+        const headers = ['ユーザーID', 'パスワード', '名前', '講師(1=はい)', '所属教室'];
+        const example = ['user003', 'pass003', '山田 花子', '0', 'aizumi-jr,aizumi-bo'];
         const csvContent = bom + [headers, example].map(row => row.join(',')).join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -242,15 +245,16 @@ export default function AdminPage() {
                 let successCount = 0, errorCount = 0;
                 const errors = [];
                 for (const line of dataLines) {
-                    const parts = line.match(/("?\[^"]*"?|[^,]+)/g)?.map(p => p.replace(/^"|"$/g, '').trim()) || [];
+                    const parts = line.match(/("?[^"]*"?|[^,]+)/g)?.map(p => p.replace(/^"|"$/g, '').trim()) || [];
                     if (parts.length < 3) { errorCount++; errors.push(`無効な行: ${line}`); continue; }
-                    const [id, password, name, schoolsStr] = parts;
+                    const [id, password, name, isTeacherStr, schoolsStr] = parts;
                     if (!id || !password || !name) { errorCount++; errors.push(`必須項目が空: ${line}`); continue; }
+                    const isTeacher = isTeacherStr === '1';
                     const schools = schoolsStr ? schoolsStr.split(',').map(s => s.trim()).filter(s => s) : [];
                     try {
                         const response = await fetch('/api/users', {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ id, password, name, isAdmin: false, schools })
+                            body: JSON.stringify({ id, password, name, isAdmin: false, isTeacher, schools })
                         });
                         if (response.ok) { successCount++; } else { const result = await response.json(); errorCount++; errors.push(`${id}: ${result.error}`); }
                     } catch (err) { errorCount++; errors.push(`${id}: エラー`); }
@@ -274,25 +278,15 @@ export default function AdminPage() {
 
     const formatDate = (timestamp) => {
         const date = new Date(timestamp);
-        return `${date.getFullYear()}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+        return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
     };
 
     const getActionLabel = (action) => {
         switch (action) {
-            case 'login': return '🔓 ログイン';
-            case 'logout': return '🔒 ログアウト';
-            case 'view_pdf': return '📄 PDF閲覧';
-            case 'login_failed': return '❌ ログイン失敗';
-            default: return action;
-        }
-    };
-
-    const getActionLabelText = (action) => {
-        switch (action) {
-            case 'login': return 'ログイン';
-            case 'logout': return 'ログアウト';
-            case 'view_pdf': return 'PDF閲覧';
-            case 'login_failed': return 'ログイン失敗';
+            case 'login': return '🔓';
+            case 'logout': return '🔒';
+            case 'view_pdf': return '📄';
+            case 'login_failed': return '❌';
             default: return action;
         }
     };
@@ -306,7 +300,7 @@ export default function AdminPage() {
         if (logs.length === 0) { alert('ダウンロードするログがありません'); return; }
         const bom = '\uFEFF';
         const headers = ['日時', 'ユーザーID', '名前', 'アクション', '詳細'];
-        const rows = logs.map(log => [formatDate(log.timestamp), log.userId, getUserName(log.userId), getActionLabelText(log.action), log.details || '']);
+        const rows = logs.map(log => [new Date(log.timestamp).toLocaleString('ja-JP'), log.userId, getUserName(log.userId), log.action, log.details || '']);
         const csvContent = bom + [headers, ...rows].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -315,60 +309,60 @@ export default function AdminPage() {
         URL.revokeObjectURL(url);
     };
 
+    // ユーザーの役割表示
+    const getUserRole = (user) => {
+        if (user.isAdmin) return '👑 管理者';
+        if (user.isTeacher) return '👩‍🏫 講師';
+        return '👤 生徒';
+    };
+
     return (
         <div className="container">
             <header className="header">
-                <h1>⚙️ ECC 総合管理ダッシュボード</h1>
-                <p>お知らせ・ユーザー・ログを管理</p>
+                <h1>⚙️ ECC 管理</h1>
+                <p>お知らせ・ユーザー・ログ</p>
             </header>
 
             <nav className="nav-bar">
                 <div className="user-info">
-                    <span>👤 {session?.name} さん</span>
+                    <span>👤 {session?.name}</span>
                     <Link href="/bulletin" className="btn btn-small btn-secondary">掲示板</Link>
                     <button onClick={handleLogout} className="btn btn-small btn-danger">ログアウト</button>
                 </div>
             </nav>
 
             <div className="admin-tabs">
-                <button className={`tab-btn ${activeTab === 'announcements' ? 'active' : ''}`} onClick={() => { setActiveTab('announcements'); loadAnnouncements(); }}>📢 お知らせ管理</button>
-                <button className={`tab-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => { setActiveTab('users'); loadUsers(); }}>👥 ユーザー管理</button>
-                <button className={`tab-btn ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => { setActiveTab('logs'); loadLogs(); }}>📋 ログ監視</button>
+                <button className={`tab-btn ${activeTab === 'announcements' ? 'active' : ''}`} onClick={() => { setActiveTab('announcements'); loadAnnouncements(); }}>📢</button>
+                <button className={`tab-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => { setActiveTab('users'); loadUsers(); }}>👥</button>
+                <button className={`tab-btn ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => { setActiveTab('logs'); loadLogs(); }}>📋</button>
             </div>
 
             {/* お知らせ管理タブ */}
             {activeTab === 'announcements' && (
                 <div className="admin-card">
-                    <h3>📢 お知らせ一覧</h3>
-                    <button className="btn btn-primary btn-small" onClick={openAddModal} style={{ marginBottom: '20px' }}>＋ 新しいお知らせを追加</button>
-                    <div style={{ overflowX: 'auto' }}>
-                        <table className="data-table">
-                            <thead><tr><th>配信日</th><th>タイトル</th><th>教室</th><th>PDF</th><th>操作</th></tr></thead>
-                            <tbody>
-                                {loading ? (
-                                    <tr><td colSpan="5" style={{ textAlign: 'center' }}>読み込み中...</td></tr>
-                                ) : announcements.length === 0 ? (
-                                    <tr><td colSpan="5" style={{ textAlign: 'center' }}>お知らせがありません</td></tr>
-                                ) : (
-                                    announcements.map((item) => (
-                                        <tr key={item.id}>
-                                            <td>{item.year}年{item.month}月{item.day}日</td>
-                                            <td>{item.title}</td>
-                                            <td>
-                                                <div className="school-tags">
-                                                    {item.schools?.map(s => <span key={s} className="school-tag" style={{ backgroundColor: getSchoolColor(s) }}>{getSchoolName(s)}</span>)}
-                                                </div>
-                                            </td>
-                                            <td>{item.pdfUrl ? <a href={item.pdfUrl} target="_blank" rel="noopener noreferrer">📄 表示</a> : <span style={{ color: '#999' }}>未登録</span>}</td>
-                                            <td className="actions">
-                                                <button className="btn-edit" onClick={() => openEditModal(item)}>編集</button>
-                                                <button className="btn-delete" onClick={() => handleDeleteAnnouncement(item.id)}>削除</button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
+                    <h3>📢 お知らせ</h3>
+                    <button className="btn btn-primary btn-small" onClick={openAddModal} style={{ marginBottom: '15px', width: '100%' }}>＋ 新規追加</button>
+                    <div className="card-list">
+                        {loading ? <p style={{ textAlign: 'center' }}>読み込み中...</p> : announcements.length === 0 ? <p style={{ textAlign: 'center' }}>お知らせがありません</p> : (
+                            announcements.map((item) => (
+                                <div key={item.id} className="card-item">
+                                    <div className="card-item-header">
+                                        <span className="card-date">{item.month}/{item.day}</span>
+                                        <span className="card-title">{item.title}</span>
+                                    </div>
+                                    <div className="card-item-body">
+                                        <div className="school-tags">
+                                            {item.schools?.length > 0 ? item.schools.map(s => <span key={s} className="school-tag" style={{ backgroundColor: getSchoolColor(s) }}>{getSchoolName(s)}</span>) : <span className="school-tag" style={{ backgroundColor: '#999' }}>全教室</span>}
+                                        </div>
+                                        <div className="card-actions">
+                                            {item.pdfUrl && <a href={item.pdfUrl} target="_blank" rel="noopener noreferrer" className="btn-icon">📄</a>}
+                                            <button className="btn-icon" onClick={() => openEditModal(item)}>✏️</button>
+                                            <button className="btn-icon" onClick={() => handleDeleteAnnouncement(item.id)}>🗑️</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             )}
@@ -376,41 +370,35 @@ export default function AdminPage() {
             {/* ユーザー管理タブ */}
             {activeTab === 'users' && (
                 <div className="admin-card">
-                    <h3>👥 ユーザー一覧</h3>
-                    <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
-                        <button className="btn btn-primary btn-small" onClick={openAddUserModal}>＋ 新しいユーザーを登録</button>
-                        <button className="btn btn-secondary btn-small" onClick={downloadUserTemplate}>📄 CSVテンプレート</button>
-                        <label className="btn btn-secondary btn-small" style={{ cursor: 'pointer', margin: 0 }}>
-                            📥 CSV一括登録
+                    <h3>👥 ユーザー</h3>
+                    <div className="btn-group">
+                        <button className="btn btn-primary btn-small" onClick={openAddUserModal}>＋ 新規</button>
+                        <button className="btn btn-secondary btn-small" onClick={downloadUserTemplate}>📄 CSV</button>
+                        <label className="btn btn-secondary btn-small" style={{ cursor: 'pointer' }}>
+                            📥 一括
                             <input type="file" accept=".csv" onChange={handleUserCSVImport} style={{ display: 'none' }} />
                         </label>
                     </div>
-                    <div style={{ overflowX: 'auto' }}>
-                        <table className="data-table">
-                            <thead><tr><th>ユーザーID</th><th>名前</th><th>所属教室</th><th>権限</th><th>操作</th></tr></thead>
-                            <tbody>
-                                {users.length === 0 ? (
-                                    <tr><td colSpan="5" style={{ textAlign: 'center' }}>ユーザーがいません</td></tr>
-                                ) : (
-                                    users.map((user) => (
-                                        <tr key={user.id}>
-                                            <td>{user.id}</td>
-                                            <td>{user.name}</td>
-                                            <td>
-                                                <div className="school-tags">
-                                                    {user.schools?.map(s => <span key={s} className="school-tag" style={{ backgroundColor: getSchoolColor(s) }}>{getSchoolName(s)}</span>)}
-                                                </div>
-                                            </td>
-                                            <td>{user.isAdmin ? '✅ 管理者' : '一般'}</td>
-                                            <td className="actions">
-                                                <button className="btn-edit" onClick={() => openEditUserModal(user)}>編集</button>
-                                                {user.id !== 'admin' && <button className="btn-delete" onClick={() => handleDeleteUser(user.id)}>削除</button>}
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
+                    <div className="card-list">
+                        {users.length === 0 ? <p style={{ textAlign: 'center' }}>ユーザーがいません</p> : (
+                            users.map((user) => (
+                                <div key={user.id} className="card-item">
+                                    <div className="card-item-header">
+                                        <span className="card-role">{getUserRole(user)}</span>
+                                        <span className="card-title">{user.name}</span>
+                                    </div>
+                                    <div className="card-item-body">
+                                        <div className="school-tags">
+                                            {user.isTeacher ? <span className="school-tag" style={{ backgroundColor: '#FF6B9D' }}>全教室</span> : user.schools?.length > 0 ? user.schools.map(s => <span key={s} className="school-tag" style={{ backgroundColor: getSchoolColor(s) }}>{getSchoolName(s)}</span>) : <span style={{ color: '#999', fontSize: '0.8rem' }}>未設定</span>}
+                                        </div>
+                                        <div className="card-actions">
+                                            <button className="btn-icon" onClick={() => openEditUserModal(user)}>✏️</button>
+                                            {user.id !== 'admin' && <button className="btn-icon" onClick={() => handleDeleteUser(user.id)}>🗑️</button>}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             )}
@@ -418,30 +406,21 @@ export default function AdminPage() {
             {/* ログ監視タブ */}
             {activeTab === 'logs' && (
                 <div className="admin-card">
-                    <h3>📋 アクセスログ</h3>
-                    <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
-                        <button className="btn btn-secondary btn-small" onClick={downloadLogsCSV}>📥 CSVダウンロード</button>
-                        <button className="btn btn-danger btn-small" onClick={clearLogs}>ログをクリア</button>
+                    <h3>📋 ログ</h3>
+                    <div className="btn-group">
+                        <button className="btn btn-secondary btn-small" onClick={downloadLogsCSV}>📥 CSV</button>
+                        <button className="btn btn-danger btn-small" onClick={clearLogs}>クリア</button>
                     </div>
-                    <div style={{ overflowX: 'auto' }}>
-                        <table className="data-table">
-                            <thead><tr><th>日時</th><th>ユーザーID</th><th>名前</th><th>アクション</th><th>詳細</th></tr></thead>
-                            <tbody>
-                                {logs.length === 0 ? (
-                                    <tr><td colSpan="5" style={{ textAlign: 'center' }}>ログがありません</td></tr>
-                                ) : (
-                                    logs.map((log, index) => (
-                                        <tr key={index}>
-                                            <td>{formatDate(log.timestamp)}</td>
-                                            <td>{log.userId}</td>
-                                            <td>{getUserName(log.userId)}</td>
-                                            <td>{getActionLabel(log.action)}</td>
-                                            <td>{log.details || '-'}</td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
+                    <div className="log-list">
+                        {logs.length === 0 ? <p style={{ textAlign: 'center' }}>ログがありません</p> : (
+                            logs.map((log, index) => (
+                                <div key={index} className="log-item">
+                                    <span className="log-action">{getActionLabel(log.action)}</span>
+                                    <span className="log-user">{getUserName(log.userId)}</span>
+                                    <span className="log-time">{formatDate(log.timestamp)}</span>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             )}
@@ -451,33 +430,33 @@ export default function AdminPage() {
                 <div className="modal-overlay show">
                     <div className="modal-content">
                         <button className="modal-close" onClick={closeModal}>&times;</button>
-                        <h3>{editingAnnouncement ? 'お知らせを編集' : '新しいお知らせを追加'}</h3>
+                        <h3>{editingAnnouncement ? '編集' : '新規追加'}</h3>
                         <form onSubmit={handleSaveAnnouncement}>
                             <div className="form-group"><label>📅 配信日</label><input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} required /></div>
                             <div className="form-group"><label>タイトル</label><input type="text" placeholder="例: 年始のご挨拶" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} required /></div>
 
                             <div className="form-group">
-                                <label>🏫 対象教室（複数選択可）</label>
+                                <label>🏫 対象教室</label>
                                 <div className="school-checkbox-group">
                                     {SCHOOLS.map(school => (
-                                        <label key={school.id} className={`school-checkbox ${formSchools.includes(school.id) ? 'selected' : ''}`} style={{ borderColor: school.color }}>
+                                        <label key={school.id} className={`school-checkbox ${formSchools.includes(school.id) ? 'selected' : ''}`}>
                                             <input type="checkbox" checked={formSchools.includes(school.id)} onChange={() => toggleFormSchool(school.id)} />
-                                            <span style={{ color: formSchools.includes(school.id) ? school.color : 'inherit' }}>{school.name}</span>
+                                            <span>{school.name}</span>
                                         </label>
                                     ))}
                                 </div>
-                                <small style={{ color: '#888', marginTop: '5px', display: 'block' }}>※選択しない場合は全教室に表示されます</small>
+                                <small style={{ color: '#888' }}>※未選択 = 全教室</small>
                             </div>
 
                             <div className="form-group">
-                                <label>📄 PDFファイル</label>
+                                <label>📄 PDF</label>
                                 <div className="file-input-wrapper">
                                     <input type="file" ref={fileInputRef} accept=".pdf" onChange={handleFileSelect} disabled={uploading} />
-                                    <div className="file-input-label"><span className="icon">📁</span><span>{uploading ? 'アップロード中...' : 'PDFファイルを選択'}</span></div>
+                                    <div className="file-input-label"><span>{uploading ? 'アップロード中...' : '📁 ファイル選択'}</span></div>
                                 </div>
                                 {selectedFileName && <div className="selected-file show">{selectedFileName}</div>}
                             </div>
-                            <button type="submit" className="btn btn-primary" style={{ marginTop: '15px' }} disabled={uploading}>保存する</button>
+                            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '15px' }} disabled={uploading}>保存</button>
                         </form>
                     </div>
                 </div>
@@ -488,26 +467,38 @@ export default function AdminPage() {
                 <div className="modal-overlay show">
                     <div className="modal-content">
                         <button className="modal-close" onClick={closeUserModal}>&times;</button>
-                        <h3>{editingUser ? 'ユーザーを編集' : '新しいユーザーを登録'}</h3>
+                        <h3>{editingUser ? '編集' : '新規登録'}</h3>
                         <form onSubmit={handleSaveUser}>
-                            <div className="form-group"><label>ユーザーID</label><input type="text" placeholder="例: user003" value={userFormId} onChange={(e) => setUserFormId(e.target.value)} required disabled={!!editingUser} /></div>
-                            <div className="form-group"><label>パスワード{editingUser && '（変更する場合のみ）'}</label><input type="text" placeholder={editingUser ? '変更しない場合は空欄' : 'パスワード'} value={userFormPassword} onChange={(e) => setUserFormPassword(e.target.value)} required={!editingUser} /></div>
-                            <div className="form-group"><label>名前</label><input type="text" placeholder="例: 山田 太郎" value={userFormName} onChange={(e) => setUserFormName(e.target.value)} required /></div>
+                            <div className="form-group"><label>ID</label><input type="text" placeholder="user003" value={userFormId} onChange={(e) => setUserFormId(e.target.value)} required disabled={!!editingUser} /></div>
+                            <div className="form-group"><label>パスワード{editingUser && '（変更時のみ）'}</label><input type="text" placeholder={editingUser ? '空欄=変更なし' : 'パスワード'} value={userFormPassword} onChange={(e) => setUserFormPassword(e.target.value)} required={!editingUser} /></div>
+                            <div className="form-group"><label>名前</label><input type="text" placeholder="山田 太郎" value={userFormName} onChange={(e) => setUserFormName(e.target.value)} required /></div>
 
                             <div className="form-group">
-                                <label>🏫 所属教室（複数選択可）</label>
-                                <div className="school-checkbox-group">
-                                    {SCHOOLS.map(school => (
-                                        <label key={school.id} className={`school-checkbox ${userFormSchools.includes(school.id) ? 'selected' : ''}`} style={{ borderColor: school.color }}>
-                                            <input type="checkbox" checked={userFormSchools.includes(school.id)} onChange={() => toggleUserSchool(school.id)} />
-                                            <span style={{ color: userFormSchools.includes(school.id) ? school.color : 'inherit' }}>{school.name}</span>
-                                        </label>
-                                    ))}
+                                <label>役割</label>
+                                <div className="role-buttons">
+                                    <button type="button" className={`role-btn ${!userFormIsAdmin && !userFormIsTeacher ? 'active' : ''}`} onClick={() => { setUserFormIsAdmin(false); setUserFormIsTeacher(false); }}>👤 生徒</button>
+                                    <button type="button" className={`role-btn ${userFormIsTeacher && !userFormIsAdmin ? 'active' : ''}`} onClick={() => { setUserFormIsAdmin(false); setUserFormIsTeacher(true); }}>👩‍🏫 講師</button>
+                                    <button type="button" className={`role-btn ${userFormIsAdmin ? 'active' : ''}`} onClick={() => { setUserFormIsAdmin(true); setUserFormIsTeacher(false); }}>👑 管理者</button>
                                 </div>
                             </div>
 
-                            <div className="form-group"><label><input type="checkbox" checked={userFormIsAdmin} onChange={(e) => setUserFormIsAdmin(e.target.checked)} /> 管理者権限を付与</label></div>
-                            <button type="submit" className="btn btn-primary" style={{ marginTop: '15px' }}>保存する</button>
+                            {!userFormIsTeacher && !userFormIsAdmin && (
+                                <div className="form-group">
+                                    <label>🏫 所属教室</label>
+                                    <div className="school-checkbox-group">
+                                        {SCHOOLS.map(school => (
+                                            <label key={school.id} className={`school-checkbox ${userFormSchools.includes(school.id) ? 'selected' : ''}`}>
+                                                <input type="checkbox" checked={userFormSchools.includes(school.id)} onChange={() => toggleUserSchool(school.id)} />
+                                                <span>{school.name}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {userFormIsTeacher && <p style={{ color: '#FF6B9D', fontSize: '0.9rem', marginBottom: '15px' }}>👩‍🏫 講師は全教室のお知らせを閲覧できます</p>}
+
+                            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '10px' }}>保存</button>
                         </form>
                     </div>
                 </div>

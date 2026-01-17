@@ -3,9 +3,9 @@ import { NextResponse } from 'next/server';
 
 // 初期ユーザー（KVが空の場合に使用）
 const DEFAULT_USERS = {
-    'user001': { id: 'user001', password: 'pass001', name: '田中 花子', isAdmin: false, schools: [] },
-    'user002': { id: 'user002', password: 'pass002', name: '鈴木 太郎', isAdmin: false, schools: [] },
-    'admin': { id: 'admin', password: 'adminpass', name: '管理者', isAdmin: true, schools: [] }
+    'user001': { id: 'user001', password: 'pass001', name: '田中 花子', isAdmin: false, isTeacher: false, schools: [] },
+    'user002': { id: 'user002', password: 'pass002', name: '鈴木 太郎', isAdmin: false, isTeacher: false, schools: [] },
+    'admin': { id: 'admin', password: 'adminpass', name: '管理者', isAdmin: true, isTeacher: false, schools: [] }
 };
 
 // ユーザー一覧取得
@@ -34,6 +34,7 @@ export async function GET() {
             id: user.id,
             name: user.name,
             isAdmin: user.isAdmin,
+            isTeacher: user.isTeacher || false,
             schools: user.schools || []
         }));
 
@@ -47,6 +48,7 @@ export async function GET() {
                 id: user.id,
                 name: user.name,
                 isAdmin: user.isAdmin,
+                isTeacher: user.isTeacher || false,
                 schools: user.schools || []
             }));
             return NextResponse.json({ users: safeUsers, fallback: true });
@@ -79,12 +81,12 @@ export async function POST(request) {
         }
 
         // ユーザー保存
-        const user = { id, password, name, isAdmin: !!isAdmin, schools: body.schools || [] };
+        const user = { id, password, name, isAdmin: !!isAdmin, isTeacher: !!body.isTeacher, schools: body.schools || [] };
         await kv.hset('users', { [id]: JSON.stringify(user) });
 
         return NextResponse.json({
             success: true,
-            user: { id, name, isAdmin: !!isAdmin, schools: user.schools }
+            user: { id, name, isAdmin: !!isAdmin, isTeacher: !!body.isTeacher, schools: user.schools }
         });
     } catch (error) {
         console.error('Create user error:', error);

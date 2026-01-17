@@ -25,6 +25,7 @@ export async function PUT(request, { params }) {
             password: password || existing.password,
             name: name || existing.name,
             isAdmin: isAdmin !== undefined ? isAdmin : existing.isAdmin,
+            isTeacher: body.isTeacher !== undefined ? body.isTeacher : (existing.isTeacher || false),
             schools: body.schools !== undefined ? body.schools : (existing.schools || [])
         };
 
@@ -32,7 +33,7 @@ export async function PUT(request, { params }) {
 
         return NextResponse.json({
             success: true,
-            user: { id, name: updated.name, isAdmin: updated.isAdmin, schools: updated.schools }
+            user: { id, name: updated.name, isAdmin: updated.isAdmin, isTeacher: updated.isTeacher, schools: updated.schools }
         });
     } catch (error) {
         console.error('Update user error:', error);

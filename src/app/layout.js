@@ -1,7 +1,7 @@
 import './globals.css';
 
 export const metadata = {
-    title: 'ECC Junior お知らせ掲示板',
+    title: 'ECC in Tokushima',
     description: '英会話スクールのお知らせをチェック',
 };
 

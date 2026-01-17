@@ -1,13 +1,14 @@
 # ECC Junior お知らせ掲示板
 
-英会話スクール向けのお知らせ掲示板システムです。
+英会話スクール向けのお知らせ掲示板システムです。Next.js + Vercel Blobで構築。
 
 ## 機能
 
-- **ユーザーログイン**: ID/パスワードによる認証
+- **ユーザーログイン**: ID/パスワード認証
 - **お知らせ閲覧**: 月別にグループ化されたお知らせ一覧
-- **PDF閲覧**: お知らせに添付されたPDFファイルを開く
-- **管理者機能**: お知らせ・ユーザーの管理、ログ監視
+- **PDF閲覧**: Vercel Blobに保存されたPDFを開く
+- **管理者機能**: お知らせの追加・編集・削除、ログ監視
+- **PDFアップロード**: ブラウザから直接Vercel Blobにアップロード
 
 ## 初期ログイン情報
 
@@ -17,33 +18,21 @@
 | user002 | pass002 | 一般ユーザー |
 | admin | adminpass | 管理者 |
 
-## ファイル構成
+## ローカル開発
 
-```
-ECC Junior bulletin board/
-├── index.html      # ログインページ
-├── bulletin.html   # お知らせ一覧
-├── admin.html      # 管理者画面
-├── css/
-│   └── style.css   # スタイルシート
-├── js/
-│   ├── db.js       # IndexedDB管理
-│   ├── auth.js     # 認証ロジック
-│   ├── bulletin.js # お知らせ表示
-│   └── admin.js    # 管理者機能
-└── pdfs/           # PDFファイル置き場
-    └── README.txt
+```bash
+# 依存関係インストール
+npm install
+
+# 開発サーバー起動
+npm run dev
 ```
 
-## PDFの追加方法
+http://localhost:3000 でアクセス
 
-1. PDFファイルを `pdfs/` フォルダに配置
-2. 管理者画面でお知らせを追加
-3. PDFパスに `pdfs/ファイル名.pdf` を入力
+## Vercelへのデプロイ
 
-## デプロイ
-
-このプロジェクトは静的サイトとしてVercelにデプロイできます。
+### 1. GitHubにプッシュ
 
 ```bash
 git init
@@ -53,10 +42,17 @@ git remote add origin <your-github-repo>
 git push -u origin main
 ```
 
-Vercelでリポジトリを連携すれば自動デプロイされます。
+### 2. Vercelで設定
 
-## 注意事項
+1. [Vercel](https://vercel.com) でGitHubリポジトリをインポート
+2. デプロイが完了したら、**Storage** タブに移動
+3. **Create Database** → **Blob** を選択
+4. 自動で `BLOB_READ_WRITE_TOKEN` が設定されます
+5. 再デプロイして完了！
 
-- データはブラウザのIndexedDBに保存されます
-- 同じブラウザでのみデータが永続化されます
-- 本番環境ではサーバーサイドとデータベースの導入を推奨
+## 技術スタック
+
+- **フレームワーク**: Next.js 14 (App Router)
+- **ストレージ**: Vercel Blob
+- **スタイル**: カスタムCSS (パステルカラーの可愛いデザイン)
+- **データ**: localStorage + sessionStorage

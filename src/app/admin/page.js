@@ -300,6 +300,53 @@ export default function AdminPage() {
         }
     };
 
+    const getActionLabelText = (action) => {
+        switch (action) {
+            case 'login': return 'ログイン';
+            case 'logout': return 'ログアウト';
+            case 'view_pdf': return 'PDF閲覧';
+            case 'login_failed': return 'ログイン失敗';
+            default: return action;
+        }
+    };
+
+    // ユーザーIDから名前を取得
+    const getUserName = (userId) => {
+        const user = users.find(u => u.id === userId);
+        return user ? user.name : userId;
+    };
+
+    // CSVダウンロード
+    const downloadLogsCSV = () => {
+        if (logs.length === 0) {
+            alert('ダウンロードするログがありません');
+            return;
+        }
+
+        // BOM付きUTF-8でCSV作成
+        const bom = '\uFEFF';
+        const headers = ['日時', 'ユーザーID', '名前', 'アクション', '詳細'];
+        const rows = logs.map(log => [
+            formatDate(log.timestamp),
+            log.userId,
+            getUserName(log.userId),
+            getActionLabelText(log.action),
+            log.details || ''
+        ]);
+
+        const csvContent = bom + [headers, ...rows]
+            .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+            .join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `access_log_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <div className="container">
             <header className="header">
@@ -387,18 +434,22 @@ export default function AdminPage() {
             {activeTab === 'logs' && (
                 <div className="admin-card">
                     <h3>📋 アクセスログ（サーバー保存）</h3>
-                    <button className="btn btn-danger btn-small" onClick={clearLogs} style={{ marginBottom: '20px' }}>ログをクリア</button>
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                        <button className="btn btn-secondary btn-small" onClick={downloadLogsCSV}>📥 CSVダウンロード</button>
+                        <button className="btn btn-danger btn-small" onClick={clearLogs}>ログをクリア</button>
+                    </div>
                     <div style={{ overflowX: 'auto' }}>
                         <table className="data-table">
-                            <thead><tr><th>日時</th><th>ユーザーID</th><th>アクション</th><th>詳細</th></tr></thead>
+                            <thead><tr><th>日時</th><th>ユーザーID</th><th>名前</th><th>アクション</th><th>詳細</th></tr></thead>
                             <tbody>
                                 {logs.length === 0 ? (
-                                    <tr><td colSpan="4" style={{ textAlign: 'center' }}>ログがありません</td></tr>
+                                    <tr><td colSpan="5" style={{ textAlign: 'center' }}>ログがありません</td></tr>
                                 ) : (
                                     logs.map((log, index) => (
                                         <tr key={index}>
                                             <td>{formatDate(log.timestamp)}</td>
                                             <td>{log.userId}</td>
+                                            <td>{getUserName(log.userId)}</td>
                                             <td>{getActionLabel(log.action)}</td>
                                             <td>{log.details || '-'}</td>
                                         </tr>

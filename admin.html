@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理画面 | ECC Junior お知らせ掲示板</title>
+    <meta name="description" content="ECC Junior お知らせ掲示板の管理画面">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>⚙️ 管理者ダッシュボード</h1>
+            <p>お知らせ・ユーザー・ログを管理</p>
+        </header>
+
+        <nav class="nav-bar">
+            <div id="user-info" class="user-info">
+                <!-- JS で表示 -->
+            </div>
+        </nav>
+
+        <!-- タブ -->
+        <div class="admin-tabs">
+            <button class="tab-btn active" data-tab="announcements" onclick="switchTab('announcements')">📢
+                お知らせ管理</button>
+            <button class="tab-btn" data-tab="users" onclick="switchTab('users')">👥 ユーザー管理</button>
+            <button class="tab-btn" data-tab="logs" onclick="switchTab('logs')">📋 ログ監視</button>
+        </div>
+
+        <!-- お知らせ管理タブ -->
+        <div id="tab-announcements" class="tab-content active">
+            <div class="admin-card">
+                <h3>📢 お知らせ一覧</h3>
+                <button class="btn btn-primary btn-small" onclick="showAnnouncementModal()"
+                    style="margin-bottom: 20px;">
+                    ＋ 新しいお知らせを追加
+                </button>
+
+                <div style="overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>配信日</th>
+                                <th>タイトル</th>
+                                <th>PDF</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="announcements-tbody">
+                            <tr>
+                                <td colspan="4" style="text-align:center;">読み込み中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ユーザー管理タブ -->
+        <div id="tab-users" class="tab-content">
+            <div class="admin-card">
+                <h3>👥 ユーザー一覧</h3>
+                <button class="btn btn-primary btn-small" onclick="showUserModal()" style="margin-bottom: 20px;">
+                    ＋ 新しいユーザーを追加
+                </button>
+
+                <div style="overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ユーザーID</th>
+                                <th>名前</th>
+                                <th>権限</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-tbody">
+                            <tr>
+                                <td colspan="4" style="text-align:center;">読み込み中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ログ監視タブ -->
+        <div id="tab-logs" class="tab-content">
+            <div class="admin-card">
+                <h3>📋 アクセスログ</h3>
+
+                <div class="log-filters">
+                    <select id="log-user-filter" onchange="loadLogsList()">
+                        <option value="">すべてのユーザー</option>
+                    </select>
+                    <select id="log-action-filter" onchange="loadLogsList()">
+                        <option value="">すべてのアクション</option>
+                        <option value="login">ログイン</option>
+                        <option value="logout">ログアウト</option>
+                        <option value="view_pdf">PDF閲覧</option>
+                        <option value="login_failed">ログイン失敗</option>
+                    </select>
+                    <button class="btn btn-danger btn-small" onclick="clearAllLogs()">ログをクリア</button>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>日時</th>
+                                <th>ユーザーID</th>
+                                <th>アクション</th>
+                                <th>詳細</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logs-tbody">
+                            <tr>
+                                <td colspan="4" style="text-align:center;">読み込み中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- お知らせ編集モーダル -->
+    <div id="announcement-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="modal-close" onclick="hideAnnouncementModal()">&times;</button>
+            <h3 id="modal-announcement-title">お知らせを追加</h3>
+
+            <form id="announcement-form" onsubmit="saveAnnouncement(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="year">年</label>
+                        <select name="year" required>
+                            <option value="2025">2025年</option>
+                            <option value="2026" selected>2026年</option>
+                            <option value="2027">2027年</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="month">月</label>
+                        <select name="month" required>
+                            <option value="1">1月</option>
+                            <option value="2">2月</option>
+                            <option value="3">3月</option>
+                            <option value="4">4月</option>
+                            <option value="5">5月</option>
+                            <option value="6">6月</option>
+                            <option value="7">7月</option>
+                            <option value="8">8月</option>
+                            <option value="9">9月</option>
+                            <option value="10">10月</option>
+                            <option value="11">11月</option>
+                            <option value="12">12月</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="day">日</label>
+                        <select name="day" required>
+                            <script>
+                                for (let i = 1; i <= 31; i++) {
+                                    document.write(`<option value="${i}">${i}日</option>`);
+                                }
+                            </script>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="title">タイトル</label>
+                    <input type="text" name="title" placeholder="例: 年始のご挨拶" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="pdfPath">PDFファイルパス</label>
+                    <input type="text" name="pdfPath" placeholder="例: pdfs/announcement.pdf" required>
+                    <small style="color: #888; font-size: 0.8rem;">※ pdfsフォルダにアップロードしたファイル名を入力</small>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="margin-top: 15px;">保存する</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ユーザー編集モーダル -->
+    <div id="user-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="modal-close" onclick="hideUserModal()">&times;</button>
+            <h3 id="modal-user-title">ユーザーを追加</h3>
+
+            <form id="user-form" onsubmit="saveUser(event)">
+                <div class="form-group">
+                    <label for="userId">ユーザーID</label>
+                    <input type="text" name="userId" placeholder="例: user003" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">パスワード</label>
+                    <input type="text" name="password" placeholder="パスワード" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="userName">名前</label>
+                    <input type="text" name="userName" placeholder="例: 山田 太郎" required>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="isAdmin"> 管理者権限を付与
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="margin-top: 15px;">保存する</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/db.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/bulletin.js"></script>
+    <script src="js/admin.js"></script>
+    <script>
+        // 初期化
+        document.addEventListener('DOMContentLoaded', async () => {
+            // データベース初期化
+            await DB.init();
+
+            // 管理者認証チェック
+            const session = Auth.requireAuth(true);
+            if (!session) return;
+
+            // ユーザー情報表示
+            Bulletin.displayUserInfo(session);
+
+            // 初期データ読み込み
+            await Admin.loadAnnouncementsList();
+            await Admin.populateLogFilters();
+        });
+    </script>
+</body>
+
+</html>

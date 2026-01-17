@@ -24,14 +24,15 @@ export async function PUT(request, { params }) {
             ...existing,
             password: password || existing.password,
             name: name || existing.name,
-            isAdmin: isAdmin !== undefined ? isAdmin : existing.isAdmin
+            isAdmin: isAdmin !== undefined ? isAdmin : existing.isAdmin,
+            schools: body.schools !== undefined ? body.schools : (existing.schools || [])
         };
 
         await kv.hset('users', { [id]: JSON.stringify(updated) });
 
         return NextResponse.json({
             success: true,
-            user: { id, name: updated.name, isAdmin: updated.isAdmin }
+            user: { id, name: updated.name, isAdmin: updated.isAdmin, schools: updated.schools }
         });
     } catch (error) {
         console.error('Update user error:', error);

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { SCHOOLS, getSchoolName, getSchoolColor } from '../lib/schools';
 
 export default function AdminPage() {
     const [session, setSession] = useState(null);
@@ -22,76 +23,56 @@ export default function AdminPage() {
     const [formTitle, setFormTitle] = useState('');
     const [formPdfUrl, setFormPdfUrl] = useState('');
     const [selectedFileName, setSelectedFileName] = useState('');
+    const [formSchools, setFormSchools] = useState([]); // 教室タグ
 
     // ユーザーフォーム状態
     const [userFormId, setUserFormId] = useState('');
     const [userFormPassword, setUserFormPassword] = useState('');
     const [userFormName, setUserFormName] = useState('');
     const [userFormIsAdmin, setUserFormIsAdmin] = useState(false);
+    const [userFormSchools, setUserFormSchools] = useState([]); // 所属教室
 
     useEffect(() => {
         const sessionData = sessionStorage.getItem('ecc_session');
-        if (!sessionData) {
-            window.location.href = '/';
-            return;
-        }
+        if (!sessionData) { window.location.href = '/'; return; }
         const parsed = JSON.parse(sessionData);
-        if (!parsed.isAdmin) {
-            window.location.href = '/bulletin';
-            return;
-        }
+        if (!parsed.isAdmin) { window.location.href = '/bulletin'; return; }
         setSession(parsed);
-
         loadAnnouncements();
         loadUsers();
     }, []);
 
     // ========== データ取得 ==========
-
     const loadAnnouncements = async () => {
         setLoading(true);
         try {
             const response = await fetch('/api/announcements');
             const result = await response.json();
-            if (result.announcements) {
-                setAnnouncements(result.announcements);
-            }
-        } catch (error) {
-            console.error('Load announcements error:', error);
-        } finally {
-            setLoading(false);
-        }
+            if (result.announcements) setAnnouncements(result.announcements);
+        } catch (error) { console.error('Load announcements error:', error); }
+        finally { setLoading(false); }
     };
 
     const loadUsers = async () => {
         try {
             const response = await fetch('/api/users');
             const result = await response.json();
-            if (result.users) {
-                setUsers(result.users);
-            }
-        } catch (error) {
-            console.error('Load users error:', error);
-        }
+            if (result.users) setUsers(result.users);
+        } catch (error) { console.error('Load users error:', error); }
     };
 
     const loadLogs = async () => {
         try {
             const response = await fetch('/api/logs?limit=200');
             const result = await response.json();
-            if (result.logs) {
-                setLogs(result.logs);
-            }
-        } catch (error) {
-            console.error('Load logs error:', error);
-        }
+            if (result.logs) setLogs(result.logs);
+        } catch (error) { console.error('Load logs error:', error); }
     };
 
     const handleLogout = async () => {
         try {
             await fetch('/api/logs', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: session?.userId, action: 'logout', details: 'ログアウト' })
             });
         } catch (err) { }
@@ -100,24 +81,23 @@ export default function AdminPage() {
     };
 
     // ========== お知らせ関連 ==========
-
     const openAddModal = () => {
         setEditingAnnouncement(null);
-        const today = new Date();
-        setFormDate(today.toISOString().split('T')[0]);
+        setFormDate(new Date().toISOString().split('T')[0]);
         setFormTitle('');
         setFormPdfUrl('');
         setSelectedFileName('');
+        setFormSchools([]);
         setShowModal(true);
     };
 
     const openEditModal = (announcement) => {
         setEditingAnnouncement(announcement);
-        const dateStr = `${announcement.year}-${String(announcement.month).padStart(2, '0')}-${String(announcement.day).padStart(2, '0')}`;
-        setFormDate(dateStr);
+        setFormDate(`${announcement.year}-${String(announcement.month).padStart(2, '0')}-${String(announcement.day).padStart(2, '0')}`);
         setFormTitle(announcement.title);
         setFormPdfUrl(announcement.pdfUrl || '');
         setSelectedFileName(announcement.pdfUrl ? 'アップロード済み' : '');
+        setFormSchools(announcement.schools || []);
         setShowModal(true);
     };
 
@@ -127,17 +107,16 @@ export default function AdminPage() {
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
+    const toggleFormSchool = (schoolId) => {
+        setFormSchools(prev => prev.includes(schoolId) ? prev.filter(id => id !== schoolId) : [...prev, schoolId]);
+    };
+
     const handleFileSelect = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        if (file.type !== 'application/pdf') {
-            alert('PDFファイルを選択してください');
-            return;
-        }
-
+        if (file.type !== 'application/pdf') { alert('PDFファイルを選択してください'); return; }
         setUploading(true);
         setSelectedFileName(file.name);
-
         try {
             const formData = new FormData();
             formData.append('file', file);
@@ -146,66 +125,45 @@ export default function AdminPage() {
             const result = await response.json();
             setFormPdfUrl(result.url);
             setSelectedFileName(`✅ ${file.name} (アップロード完了)`);
-        } catch (error) {
-            console.error('Upload error:', error);
-            alert('アップロードに失敗しました');
-            setSelectedFileName('');
-        } finally {
-            setUploading(false);
-        }
+        } catch (error) { console.error('Upload error:', error); alert('アップロードに失敗しました'); setSelectedFileName(''); }
+        finally { setUploading(false); }
     };
 
     const handleSaveAnnouncement = async (e) => {
         e.preventDefault();
-        if (!formDate || !formTitle) {
-            alert('日付とタイトルを入力してください');
-            return;
-        }
-
+        if (!formDate || !formTitle) { alert('日付とタイトルを入力してください'); return; }
         const [year, month, day] = formDate.split('-').map(Number);
-
         try {
             if (editingAnnouncement) {
-                // 更新
                 await fetch(`/api/announcements/${editingAnnouncement.id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ year, month, day, title: formTitle, pdfUrl: formPdfUrl })
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ year, month, day, title: formTitle, pdfUrl: formPdfUrl, schools: formSchools })
                 });
             } else {
-                // 新規追加
                 await fetch('/api/announcements', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ year, month, day, title: formTitle, pdfUrl: formPdfUrl })
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ year, month, day, title: formTitle, pdfUrl: formPdfUrl, schools: formSchools })
                 });
             }
             closeModal();
             loadAnnouncements();
-        } catch (error) {
-            console.error('Save announcement error:', error);
-            alert('保存に失敗しました');
-        }
+        } catch (error) { console.error('Save announcement error:', error); alert('保存に失敗しました'); }
     };
 
     const handleDeleteAnnouncement = async (id) => {
         if (!confirm('このお知らせを削除しますか？')) return;
-        try {
-            await fetch(`/api/announcements/${id}`, { method: 'DELETE' });
-            loadAnnouncements();
-        } catch (error) {
-            console.error('Delete announcement error:', error);
-        }
+        try { await fetch(`/api/announcements/${id}`, { method: 'DELETE' }); loadAnnouncements(); }
+        catch (error) { console.error('Delete announcement error:', error); }
     };
 
     // ========== ユーザー関連 ==========
-
     const openAddUserModal = () => {
         setEditingUser(null);
         setUserFormId('');
         setUserFormPassword('');
         setUserFormName('');
         setUserFormIsAdmin(false);
+        setUserFormSchools([]);
         setShowUserModal(true);
     };
 
@@ -215,6 +173,7 @@ export default function AdminPage() {
         setUserFormPassword('');
         setUserFormName(user.name);
         setUserFormIsAdmin(user.isAdmin);
+        setUserFormSchools(user.schools || []);
         setShowUserModal(true);
     };
 
@@ -223,69 +182,49 @@ export default function AdminPage() {
         setEditingUser(null);
     };
 
+    const toggleUserSchool = (schoolId) => {
+        setUserFormSchools(prev => prev.includes(schoolId) ? prev.filter(id => id !== schoolId) : [...prev, schoolId]);
+    };
+
     const handleSaveUser = async (e) => {
         e.preventDefault();
-        if (!userFormId || !userFormName || (!editingUser && !userFormPassword)) {
-            alert('必須項目を入力してください');
-            return;
-        }
-
+        if (!userFormId || !userFormName || (!editingUser && !userFormPassword)) { alert('必須項目を入力してください'); return; }
         try {
             if (editingUser) {
                 const response = await fetch(`/api/users/${userFormId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password: userFormPassword || undefined, name: userFormName, isAdmin: userFormIsAdmin })
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: userFormPassword || undefined, name: userFormName, isAdmin: userFormIsAdmin, schools: userFormSchools })
                 });
-                if (!response.ok) {
-                    const result = await response.json();
-                    alert(result.error || '更新に失敗しました');
-                    return;
-                }
+                if (!response.ok) { const result = await response.json(); alert(result.error || '更新に失敗しました'); return; }
             } else {
                 const response = await fetch('/api/users', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: userFormId, password: userFormPassword, name: userFormName, isAdmin: userFormIsAdmin })
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: userFormId, password: userFormPassword, name: userFormName, isAdmin: userFormIsAdmin, schools: userFormSchools })
                 });
-                if (!response.ok) {
-                    const result = await response.json();
-                    alert(result.error || '登録に失敗しました');
-                    return;
-                }
+                if (!response.ok) { const result = await response.json(); alert(result.error || '登録に失敗しました'); return; }
             }
             closeUserModal();
             loadUsers();
-        } catch (error) {
-            console.error('Save user error:', error);
-            alert('保存に失敗しました');
-        }
+        } catch (error) { console.error('Save user error:', error); alert('保存に失敗しました'); }
     };
 
     const handleDeleteUser = async (id) => {
         if (id === 'admin') { alert('管理者アカウントは削除できません'); return; }
         if (!confirm('このユーザーを削除しますか？')) return;
-        try {
-            await fetch(`/api/users/${id}`, { method: 'DELETE' });
-            loadUsers();
-        } catch (error) {
-            console.error('Delete user error:', error);
-        }
+        try { await fetch(`/api/users/${id}`, { method: 'DELETE' }); loadUsers(); }
+        catch (error) { console.error('Delete user error:', error); }
     };
 
-    // CSVテンプレートダウンロード
+    // CSVテンプレート
     const downloadUserTemplate = () => {
         const bom = '\uFEFF';
-        const headers = ['ユーザーID', 'パスワード', '名前'];
-        const example = ['user003', 'pass003', '山田 花子'];
+        const headers = ['ユーザーID', 'パスワード', '名前', '所属教室（カンマ区切り）'];
+        const example = ['user003', 'pass003', '山田 花子', 'aizumi-jr,aizumi-bo'];
         const csvContent = bom + [headers, example].map(row => row.join(',')).join('\n');
-
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = url;
-        link.download = 'user_template.csv';
-        link.click();
+        link.href = url; link.download = 'user_template.csv'; link.click();
         URL.revokeObjectURL(url);
     };
 
@@ -293,88 +232,44 @@ export default function AdminPage() {
     const handleUserCSVImport = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-
         const reader = new FileReader();
         reader.onload = async (event) => {
             try {
                 const text = event.target.result;
                 const lines = text.split(/\r?\n/).filter(line => line.trim());
-
-                if (lines.length < 2) {
-                    alert('データがありません。ヘッダー行とデータ行が必要です。');
-                    return;
-                }
-
-                // ヘッダー行をスキップ
+                if (lines.length < 2) { alert('データがありません'); return; }
                 const dataLines = lines.slice(1);
-                let successCount = 0;
-                let errorCount = 0;
+                let successCount = 0, errorCount = 0;
                 const errors = [];
-
                 for (const line of dataLines) {
-                    // CSVパース（カンマ区切り、ダブルクォート対応）
-                    const parts = line.match(/("[^"]*"|[^,]+)/g)?.map(p => p.replace(/^"|"$/g, '').trim()) || [];
-
-                    if (parts.length < 3) {
-                        errorCount++;
-                        errors.push(`無効な行: ${line}`);
-                        continue;
-                    }
-
-                    const [id, password, name] = parts;
-
-                    if (!id || !password || !name) {
-                        errorCount++;
-                        errors.push(`必須項目が空: ${line}`);
-                        continue;
-                    }
-
+                    const parts = line.match(/("?\[^"]*"?|[^,]+)/g)?.map(p => p.replace(/^"|"$/g, '').trim()) || [];
+                    if (parts.length < 3) { errorCount++; errors.push(`無効な行: ${line}`); continue; }
+                    const [id, password, name, schoolsStr] = parts;
+                    if (!id || !password || !name) { errorCount++; errors.push(`必須項目が空: ${line}`); continue; }
+                    const schools = schoolsStr ? schoolsStr.split(',').map(s => s.trim()).filter(s => s) : [];
                     try {
                         const response = await fetch('/api/users', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ id, password, name, isAdmin: false })
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id, password, name, isAdmin: false, schools })
                         });
-
-                        if (response.ok) {
-                            successCount++;
-                        } else {
-                            const result = await response.json();
-                            errorCount++;
-                            errors.push(`${id}: ${result.error}`);
-                        }
-                    } catch (err) {
-                        errorCount++;
-                        errors.push(`${id}: エラー`);
-                    }
+                        if (response.ok) { successCount++; } else { const result = await response.json(); errorCount++; errors.push(`${id}: ${result.error}`); }
+                    } catch (err) { errorCount++; errors.push(`${id}: エラー`); }
                 }
-
                 let message = `インポート完了\n成功: ${successCount}件`;
-                if (errorCount > 0) {
-                    message += `\n失敗: ${errorCount}件\n\n${errors.slice(0, 5).join('\n')}`;
-                    if (errors.length > 5) message += `\n...他${errors.length - 5}件`;
-                }
+                if (errorCount > 0) { message += `\n失敗: ${errorCount}件\n\n${errors.slice(0, 5).join('\n')}`; if (errors.length > 5) message += `\n...他${errors.length - 5}件`; }
                 alert(message);
                 loadUsers();
-            } catch (error) {
-                console.error('CSV import error:', error);
-                alert('CSVの読み込みに失敗しました');
-            }
+            } catch (error) { console.error('CSV import error:', error); alert('CSVの読み込みに失敗しました'); }
         };
         reader.readAsText(file, 'UTF-8');
-        e.target.value = ''; // リセット
+        e.target.value = '';
     };
 
     // ========== ログ関連 ==========
-
     const clearLogs = async () => {
         if (!confirm('すべてのログを削除しますか？')) return;
-        try {
-            await fetch('/api/logs', { method: 'DELETE' });
-            setLogs([]);
-        } catch (error) {
-            console.error('Clear logs error:', error);
-        }
+        try { await fetch('/api/logs', { method: 'DELETE' }); setLogs([]); }
+        catch (error) { console.error('Clear logs error:', error); }
     };
 
     const formatDate = (timestamp) => {
@@ -402,47 +297,28 @@ export default function AdminPage() {
         }
     };
 
-    // ユーザーIDから名前を取得
     const getUserName = (userId) => {
         const user = users.find(u => u.id === userId);
         return user ? user.name : userId;
     };
 
-    // CSVダウンロード
     const downloadLogsCSV = () => {
-        if (logs.length === 0) {
-            alert('ダウンロードするログがありません');
-            return;
-        }
-
-        // BOM付きUTF-8でCSV作成
+        if (logs.length === 0) { alert('ダウンロードするログがありません'); return; }
         const bom = '\uFEFF';
         const headers = ['日時', 'ユーザーID', '名前', 'アクション', '詳細'];
-        const rows = logs.map(log => [
-            formatDate(log.timestamp),
-            log.userId,
-            getUserName(log.userId),
-            getActionLabelText(log.action),
-            log.details || ''
-        ]);
-
-        const csvContent = bom + [headers, ...rows]
-            .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-            .join('\n');
-
+        const rows = logs.map(log => [formatDate(log.timestamp), log.userId, getUserName(log.userId), getActionLabelText(log.action), log.details || '']);
+        const csvContent = bom + [headers, ...rows].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = url;
-        link.download = `access_log_${new Date().toISOString().split('T')[0]}.csv`;
-        link.click();
+        link.href = url; link.download = `access_log_${new Date().toISOString().split('T')[0]}.csv`; link.click();
         URL.revokeObjectURL(url);
     };
 
     return (
         <div className="container">
             <header className="header">
-                <h1>⚙️ 管理者ダッシュボード</h1>
+                <h1>⚙️ ECC 総合管理ダッシュボード</h1>
                 <p>お知らせ・ユーザー・ログを管理</p>
             </header>
 
@@ -463,21 +339,26 @@ export default function AdminPage() {
             {/* お知らせ管理タブ */}
             {activeTab === 'announcements' && (
                 <div className="admin-card">
-                    <h3>📢 お知らせ一覧（サーバー保存）</h3>
+                    <h3>📢 お知らせ一覧</h3>
                     <button className="btn btn-primary btn-small" onClick={openAddModal} style={{ marginBottom: '20px' }}>＋ 新しいお知らせを追加</button>
                     <div style={{ overflowX: 'auto' }}>
                         <table className="data-table">
-                            <thead><tr><th>配信日</th><th>タイトル</th><th>PDF</th><th>操作</th></tr></thead>
+                            <thead><tr><th>配信日</th><th>タイトル</th><th>教室</th><th>PDF</th><th>操作</th></tr></thead>
                             <tbody>
                                 {loading ? (
-                                    <tr><td colSpan="4" style={{ textAlign: 'center' }}>読み込み中...</td></tr>
+                                    <tr><td colSpan="5" style={{ textAlign: 'center' }}>読み込み中...</td></tr>
                                 ) : announcements.length === 0 ? (
-                                    <tr><td colSpan="4" style={{ textAlign: 'center' }}>お知らせがありません</td></tr>
+                                    <tr><td colSpan="5" style={{ textAlign: 'center' }}>お知らせがありません</td></tr>
                                 ) : (
                                     announcements.map((item) => (
                                         <tr key={item.id}>
                                             <td>{item.year}年{item.month}月{item.day}日</td>
                                             <td>{item.title}</td>
+                                            <td>
+                                                <div className="school-tags">
+                                                    {item.schools?.map(s => <span key={s} className="school-tag" style={{ backgroundColor: getSchoolColor(s) }}>{getSchoolName(s)}</span>)}
+                                                </div>
+                                            </td>
                                             <td>{item.pdfUrl ? <a href={item.pdfUrl} target="_blank" rel="noopener noreferrer">📄 表示</a> : <span style={{ color: '#999' }}>未登録</span>}</td>
                                             <td className="actions">
                                                 <button className="btn-edit" onClick={() => openEditModal(item)}>編集</button>
@@ -495,7 +376,7 @@ export default function AdminPage() {
             {/* ユーザー管理タブ */}
             {activeTab === 'users' && (
                 <div className="admin-card">
-                    <h3>👥 ユーザー一覧（サーバー保存）</h3>
+                    <h3>👥 ユーザー一覧</h3>
                     <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
                         <button className="btn btn-primary btn-small" onClick={openAddUserModal}>＋ 新しいユーザーを登録</button>
                         <button className="btn btn-secondary btn-small" onClick={downloadUserTemplate}>📄 CSVテンプレート</button>
@@ -506,15 +387,20 @@ export default function AdminPage() {
                     </div>
                     <div style={{ overflowX: 'auto' }}>
                         <table className="data-table">
-                            <thead><tr><th>ユーザーID</th><th>名前</th><th>権限</th><th>操作</th></tr></thead>
+                            <thead><tr><th>ユーザーID</th><th>名前</th><th>所属教室</th><th>権限</th><th>操作</th></tr></thead>
                             <tbody>
                                 {users.length === 0 ? (
-                                    <tr><td colSpan="4" style={{ textAlign: 'center' }}>ユーザーがいません</td></tr>
+                                    <tr><td colSpan="5" style={{ textAlign: 'center' }}>ユーザーがいません</td></tr>
                                 ) : (
                                     users.map((user) => (
                                         <tr key={user.id}>
                                             <td>{user.id}</td>
                                             <td>{user.name}</td>
+                                            <td>
+                                                <div className="school-tags">
+                                                    {user.schools?.map(s => <span key={s} className="school-tag" style={{ backgroundColor: getSchoolColor(s) }}>{getSchoolName(s)}</span>)}
+                                                </div>
+                                            </td>
                                             <td>{user.isAdmin ? '✅ 管理者' : '一般'}</td>
                                             <td className="actions">
                                                 <button className="btn-edit" onClick={() => openEditUserModal(user)}>編集</button>
@@ -532,7 +418,7 @@ export default function AdminPage() {
             {/* ログ監視タブ */}
             {activeTab === 'logs' && (
                 <div className="admin-card">
-                    <h3>📋 アクセスログ（サーバー保存）</h3>
+                    <h3>📋 アクセスログ</h3>
                     <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
                         <button className="btn btn-secondary btn-small" onClick={downloadLogsCSV}>📥 CSVダウンロード</button>
                         <button className="btn btn-danger btn-small" onClick={clearLogs}>ログをクリア</button>
@@ -569,6 +455,20 @@ export default function AdminPage() {
                         <form onSubmit={handleSaveAnnouncement}>
                             <div className="form-group"><label>📅 配信日</label><input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} required /></div>
                             <div className="form-group"><label>タイトル</label><input type="text" placeholder="例: 年始のご挨拶" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} required /></div>
+
+                            <div className="form-group">
+                                <label>🏫 対象教室（複数選択可）</label>
+                                <div className="school-checkbox-group">
+                                    {SCHOOLS.map(school => (
+                                        <label key={school.id} className={`school-checkbox ${formSchools.includes(school.id) ? 'selected' : ''}`} style={{ borderColor: school.color }}>
+                                            <input type="checkbox" checked={formSchools.includes(school.id)} onChange={() => toggleFormSchool(school.id)} />
+                                            <span style={{ color: formSchools.includes(school.id) ? school.color : 'inherit' }}>{school.name}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                                <small style={{ color: '#888', marginTop: '5px', display: 'block' }}>※選択しない場合は全教室に表示されます</small>
+                            </div>
+
                             <div className="form-group">
                                 <label>📄 PDFファイル</label>
                                 <div className="file-input-wrapper">
@@ -593,6 +493,19 @@ export default function AdminPage() {
                             <div className="form-group"><label>ユーザーID</label><input type="text" placeholder="例: user003" value={userFormId} onChange={(e) => setUserFormId(e.target.value)} required disabled={!!editingUser} /></div>
                             <div className="form-group"><label>パスワード{editingUser && '（変更する場合のみ）'}</label><input type="text" placeholder={editingUser ? '変更しない場合は空欄' : 'パスワード'} value={userFormPassword} onChange={(e) => setUserFormPassword(e.target.value)} required={!editingUser} /></div>
                             <div className="form-group"><label>名前</label><input type="text" placeholder="例: 山田 太郎" value={userFormName} onChange={(e) => setUserFormName(e.target.value)} required /></div>
+
+                            <div className="form-group">
+                                <label>🏫 所属教室（複数選択可）</label>
+                                <div className="school-checkbox-group">
+                                    {SCHOOLS.map(school => (
+                                        <label key={school.id} className={`school-checkbox ${userFormSchools.includes(school.id) ? 'selected' : ''}`} style={{ borderColor: school.color }}>
+                                            <input type="checkbox" checked={userFormSchools.includes(school.id)} onChange={() => toggleUserSchool(school.id)} />
+                                            <span style={{ color: userFormSchools.includes(school.id) ? school.color : 'inherit' }}>{school.name}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
                             <div className="form-group"><label><input type="checkbox" checked={userFormIsAdmin} onChange={(e) => setUserFormIsAdmin(e.target.checked)} /> 管理者権限を付与</label></div>
                             <button type="submit" className="btn btn-primary" style={{ marginTop: '15px' }}>保存する</button>
                         </form>

@@ -26,7 +26,8 @@ export async function PUT(request, { params }) {
             month: month !== undefined ? parseInt(month) : announcements[index].month,
             day: day !== undefined ? parseInt(day) : announcements[index].day,
             title: title || announcements[index].title,
-            pdfUrl: pdfUrl !== undefined ? pdfUrl : announcements[index].pdfUrl
+            pdfUrl: pdfUrl !== undefined ? pdfUrl : announcements[index].pdfUrl,
+            schools: body.schools !== undefined ? body.schools : announcements[index].schools
         };
 
         // 保存

@@ -3,9 +3,9 @@ import { NextResponse } from 'next/server';
 
 // 初期ユーザー（フォールバック用）
 const DEFAULT_USERS = {
-    'user001': { id: 'user001', password: 'pass001', name: '田中 花子', isAdmin: false },
-    'user002': { id: 'user002', password: 'pass002', name: '鈴木 太郎', isAdmin: false },
-    'admin': { id: 'admin', password: 'adminpass', name: '管理者', isAdmin: true }
+    'user001': { id: 'user001', password: 'pass001', name: '田中 花子', isAdmin: false, schools: [] },
+    'user002': { id: 'user002', password: 'pass002', name: '鈴木 太郎', isAdmin: false, schools: [] },
+    'admin': { id: 'admin', password: 'adminpass', name: '管理者', isAdmin: true, schools: [] }
 };
 
 // ログイン認証
@@ -66,7 +66,8 @@ export async function POST(request) {
             user: {
                 userId: user.id,
                 name: user.name,
-                isAdmin: user.isAdmin
+                isAdmin: user.isAdmin,
+                schools: user.schools || []
             }
         });
     } catch (error) {

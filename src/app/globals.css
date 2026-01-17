@@ -370,6 +370,110 @@ body {
     font-size: 1.2rem;
 }
 
+/* ===== School Filter ===== */
+.school-filter {
+    background: var(--white);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-soft);
+    padding: 20px;
+    margin-bottom: 25px;
+}
+
+.school-filter .filter-label {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    font-size: 0.95rem;
+}
+
+.school-filter .filter-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.filter-btn {
+    padding: 8px 16px;
+    border: 2px solid var(--accent-lavender);
+    border-radius: 20px;
+    background: var(--white);
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    color: var(--text-secondary);
+}
+
+.filter-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.filter-btn.active {
+    background: var(--primary-pink);
+    border-color: var(--primary-pink);
+    color: var(--white);
+}
+
+/* ===== School Tags ===== */
+.school-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-left: auto;
+}
+
+.school-tag {
+    padding: 3px 10px;
+    border-radius: 15px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: white;
+    white-space: nowrap;
+}
+
+/* ===== Announcement Header ===== */
+.announcement-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+/* ===== School Checkbox Group ===== */
+.school-checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.school-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: 2px solid var(--accent-lavender);
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 0.85rem;
+}
+
+.school-checkbox:hover {
+    border-color: var(--primary-pink);
+}
+
+.school-checkbox.selected {
+    background: var(--accent-peach);
+    border-color: var(--primary-pink);
+}
+
+.school-checkbox input {
+    display: none;
+}
+
 /* ===== Admin Panel ===== */
 .admin-tabs {
     display: flex;

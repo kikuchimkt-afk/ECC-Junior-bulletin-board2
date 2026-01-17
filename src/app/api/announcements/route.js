@@ -3,9 +3,9 @@ import { NextResponse } from 'next/server';
 
 // 初期お知らせ（KVが空の場合に使用）
 const DEFAULT_ANNOUNCEMENTS = [
-    { id: 1, year: 2026, month: 1, day: 10, title: '年始のご挨拶', pdfUrl: '' },
-    { id: 2, year: 2026, month: 1, day: 12, title: 'レッスンの変更のお知らせ', pdfUrl: '' },
-    { id: 3, year: 2026, month: 2, day: 1, title: '講師の変更のご案内', pdfUrl: '' }
+    { id: 1, year: 2026, month: 1, day: 10, title: '年始のご挨拶', pdfUrl: '', schools: [] },
+    { id: 2, year: 2026, month: 1, day: 12, title: 'レッスンの変更のお知らせ', pdfUrl: '', schools: [] },
+    { id: 3, year: 2026, month: 2, day: 1, title: '講師の変更のご案内', pdfUrl: '', schools: [] }
 ];
 
 // お知らせ一覧取得
@@ -63,7 +63,8 @@ export async function POST(request) {
             month: parseInt(month),
             day: parseInt(day),
             title,
-            pdfUrl: pdfUrl || ''
+            pdfUrl: pdfUrl || '',
+            schools: body.schools || []
         };
 
         announcements.push(newAnnouncement);

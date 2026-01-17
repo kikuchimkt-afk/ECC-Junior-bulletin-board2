@@ -84,8 +84,8 @@ async function renderAnnouncements() {
                 <div class="announcement-item">
                     <span class="announcement-date">${group.month}月${item.day}日配信</span>
                     <span class="announcement-title">${item.title}</span>
-                    <a href="${item.pdfPath}" target="_blank" class="announcement-link" 
-                       onclick="handlePdfClick(${item.id}, '${item.title}')">${item.title}</a>
+                    <a href="javascript:void(0)" class="announcement-link" 
+                       onclick="openPdf(${item.id}, '${item.pdfPath}', '${item.title}')">${item.title}</a>
                 </div>
             `;
         });
@@ -100,10 +100,39 @@ async function renderAnnouncements() {
 }
 
 /**
- * PDF クリック時のハンドラ
+ * PDF を開く
+ * localStorageに保存されたPDFがあればそれを開く
+ * なければ通常のパスで開く
  */
-async function handlePdfClick(id, title) {
+async function openPdf(id, pdfPath, title) {
+    // ログを記録
     await Auth.logPdfView(id, title);
+
+    // localStorageから保存されたPDFを取得
+    try {
+        const storedPdfs = JSON.parse(localStorage.getItem('uploaded_pdfs') || '{}');
+        const pdfData = storedPdfs[pdfPath];
+
+        if (pdfData) {
+            // Base64データをBlobに変換して新しいタブで開く
+            const byteCharacters = atob(pdfData.split(',')[1]);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'application/pdf' });
+            const blobUrl = URL.createObjectURL(blob);
+            window.open(blobUrl, '_blank');
+        } else {
+            // 通常のファイルパスで開く
+            window.open(pdfPath, '_blank');
+        }
+    } catch (error) {
+        console.error('Error opening PDF:', error);
+        // エラー時は通常のパスで開く
+        window.open(pdfPath, '_blank');
+    }
 }
 
 /**
@@ -126,4 +155,5 @@ window.Bulletin = {
     displayUserInfo
 };
 
-window.handlePdfClick = handlePdfClick;
+window.openPdf = openPdf;
+

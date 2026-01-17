@@ -71,19 +71,35 @@ function showAnnouncementModal(announcement = null) {
     const modal = document.getElementById('announcement-modal');
     const title = document.getElementById('modal-announcement-title');
     const form = document.getElementById('announcement-form');
+    const dateInput = document.getElementById('announcementDate');
+    const pdfPathInput = document.getElementById('pdfPathInput');
+    const selectedPdfInfo = document.getElementById('selected-pdf-info');
+    const pdfFileInput = document.getElementById('pdfFileInput');
 
     title.textContent = announcement ? 'お知らせを編集' : '新しいお知らせを追加';
 
+    // PDFファイル情報をリセット
+    if (pdfFileInput) pdfFileInput.value = '';
+    selectedPdfInfo.classList.remove('show');
+    selectedPdfInfo.textContent = '';
+
     if (announcement) {
-        form.year.value = announcement.year;
-        form.month.value = announcement.month;
-        form.day.value = announcement.day;
+        // 編集モード: 既存データをセット
+        const dateStr = `${announcement.year}-${String(announcement.month).padStart(2, '0')}-${String(announcement.day).padStart(2, '0')}`;
+        dateInput.value = dateStr;
         form.title.value = announcement.title;
-        form.pdfPath.value = announcement.pdfPath;
+        pdfPathInput.value = announcement.pdfPath;
+
+        // 既存PDFパスを表示
+        selectedPdfInfo.textContent = `📎 現在のファイル: ${announcement.pdfPath}`;
+        selectedPdfInfo.classList.add('show');
     } else {
+        // 新規モード: 今日の日付をデフォルト
         form.reset();
-        form.year.value = new Date().getFullYear();
-        form.month.value = new Date().getMonth() + 1;
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        dateInput.value = todayStr;
+        pdfPathInput.value = '';
     }
 
     modal.classList.add('show');
@@ -99,12 +115,28 @@ async function saveAnnouncement(event) {
     event.preventDefault();
 
     const form = event.target;
+    const dateValue = document.getElementById('announcementDate').value;
+    const pdfPath = document.getElementById('pdfPathInput').value;
+
+    if (!dateValue) {
+        alert('日付を選択してください');
+        return;
+    }
+
+    if (!pdfPath) {
+        alert('PDFファイルを選択してください');
+        return;
+    }
+
+    // YYYY-MM-DD形式から年月日を抽出
+    const [year, month, day] = dateValue.split('-').map(num => parseInt(num));
+
     const data = {
-        year: parseInt(form.year.value),
-        month: parseInt(form.month.value),
-        day: parseInt(form.day.value),
+        year: year,
+        month: month,
+        day: day,
         title: form.title.value.trim(),
-        pdfPath: form.pdfPath.value.trim()
+        pdfPath: pdfPath
     };
 
     try {
@@ -331,3 +363,101 @@ window.editUser = editUser;
 window.deleteUserConfirm = deleteUserConfirm;
 window.loadLogsList = loadLogsList;
 window.clearAllLogs = clearAllLogs;
+
+// ========== PDFアップロード ==========
+
+// アップロードされたPDFを保存するストレージ
+let uploadedPdfData = null;
+
+/**
+ * PDFファイルアップロードハンドラ
+ */
+function handlePdfUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // PDFファイルかチェック
+    if (file.type !== 'application/pdf') {
+        alert('PDFファイルを選択してください');
+        event.target.value = '';
+        return;
+    }
+
+    // ファイル名からパスを生成
+    const fileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_'); // 安全なファイル名に変換
+    const pdfPath = `pdfs/${fileName}`;
+
+    // パスを入力欄に設定
+    const pdfPathInput = document.getElementById('pdfPathInput');
+    pdfPathInput.value = pdfPath;
+
+    // 選択したファイル情報を表示
+    const selectedPdfInfo = document.getElementById('selected-pdf-info');
+    selectedPdfInfo.textContent = `✅ 選択済み: ${file.name} (${formatFileSize(file.size)})`;
+    selectedPdfInfo.classList.add('show');
+
+    // PDFデータをBase64として保存（IndexedDBに保存するため）
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        uploadedPdfData = {
+            name: fileName,
+            path: pdfPath,
+            data: e.target.result,
+            type: file.type,
+            size: file.size
+        };
+
+        // IndexedDBにPDFを保存
+        savePdfToStorage(uploadedPdfData);
+    };
+    reader.readAsDataURL(file);
+}
+
+/**
+ * ファイルサイズをフォーマット
+ */
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+/**
+ * PDFをIndexedDBに保存
+ */
+async function savePdfToStorage(pdfData) {
+    try {
+        // pdfsストアがなければ新しいDBバージョンが必要
+        // 今回は簡易的にlocalStorageに保存（小さいファイル向け）
+        // 大きなファイルにはIndexedDBの追加ストアが必要
+
+        // Base64データをlocalStorageに保存
+        const storedPdfs = JSON.parse(localStorage.getItem('uploaded_pdfs') || '{}');
+        storedPdfs[pdfData.path] = pdfData.data;
+        localStorage.setItem('uploaded_pdfs', JSON.stringify(storedPdfs));
+
+        console.log('PDF saved to storage:', pdfData.path);
+    } catch (error) {
+        console.error('Error saving PDF:', error);
+        // ストレージ容量超過の場合
+        if (error.name === 'QuotaExceededError') {
+            alert('ストレージ容量が不足しています。古いPDFを削除してください。');
+        }
+    }
+}
+
+/**
+ * 保存されたPDFを取得
+ */
+function getStoredPdf(pdfPath) {
+    try {
+        const storedPdfs = JSON.parse(localStorage.getItem('uploaded_pdfs') || '{}');
+        return storedPdfs[pdfPath];
+    } catch (error) {
+        console.error('Error getting PDF:', error);
+        return null;
+    }
+}
+
+window.handlePdfUpload = handlePdfUpload;
+window.getStoredPdf = getStoredPdf;

@@ -332,16 +332,16 @@ export default function AdminPage() {
             </nav>
 
             <div className="admin-tabs">
-                <button className={`tab-btn ${activeTab === 'announcements' ? 'active' : ''}`} onClick={() => { setActiveTab('announcements'); loadAnnouncements(); }}>📢</button>
-                <button className={`tab-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => { setActiveTab('users'); loadUsers(); }}>👥</button>
-                <button className={`tab-btn ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => { setActiveTab('logs'); loadLogs(); }}>📋</button>
+                <button className={`tab-btn ${activeTab === 'announcements' ? 'active' : ''}`} onClick={() => { setActiveTab('announcements'); loadAnnouncements(); }}>📢 お知らせ管理</button>
+                <button className={`tab-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => { setActiveTab('users'); loadUsers(); }}>👥 ユーザー管理</button>
+                <button className={`tab-btn ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => { setActiveTab('logs'); loadLogs(); }}>📋 ログ監視</button>
             </div>
 
             {/* お知らせ管理タブ */}
             {activeTab === 'announcements' && (
                 <div className="admin-card">
-                    <h3>📢 お知らせ</h3>
-                    <button className="btn btn-primary btn-small" onClick={openAddModal} style={{ marginBottom: '15px', width: '100%' }}>＋ 新規追加</button>
+                    <h3>📢 お知らせ一覧</h3>
+                    <button className="btn btn-primary btn-small" onClick={openAddModal} style={{ marginBottom: '15px', width: '100%' }}>＋ 新しいお知らせを追加</button>
                     <div className="card-list">
                         {loading ? <p style={{ textAlign: 'center' }}>読み込み中...</p> : announcements.length === 0 ? <p style={{ textAlign: 'center' }}>お知らせがありません</p> : (
                             announcements.map((item) => (
@@ -355,9 +355,9 @@ export default function AdminPage() {
                                             {item.schools?.length > 0 ? item.schools.map(s => <span key={s} className="school-tag" style={{ backgroundColor: getSchoolColor(s) }}>{getSchoolName(s)}</span>) : <span className="school-tag" style={{ backgroundColor: '#999' }}>全教室</span>}
                                         </div>
                                         <div className="card-actions">
-                                            {item.pdfUrl && <a href={item.pdfUrl} target="_blank" rel="noopener noreferrer" className="btn-icon">📄</a>}
-                                            <button className="btn-icon" onClick={() => openEditModal(item)}>✏️</button>
-                                            <button className="btn-icon" onClick={() => handleDeleteAnnouncement(item.id)}>🗑️</button>
+                                            {item.pdfUrl && <a href={item.pdfUrl} target="_blank" rel="noopener noreferrer" className="btn-edit">PDF</a>}
+                                            <button className="btn-edit" onClick={() => openEditModal(item)}>編集</button>
+                                            <button className="btn-delete" onClick={() => handleDeleteAnnouncement(item.id)}>削除</button>
                                         </div>
                                     </div>
                                 </div>
@@ -370,12 +370,12 @@ export default function AdminPage() {
             {/* ユーザー管理タブ */}
             {activeTab === 'users' && (
                 <div className="admin-card">
-                    <h3>👥 ユーザー</h3>
+                    <h3>👥 ユーザー一覧</h3>
                     <div className="btn-group">
-                        <button className="btn btn-primary btn-small" onClick={openAddUserModal}>＋ 新規</button>
-                        <button className="btn btn-secondary btn-small" onClick={downloadUserTemplate}>📄 CSV</button>
+                        <button className="btn btn-primary btn-small" onClick={openAddUserModal}>＋ 新しいユーザーを登録</button>
+                        <button className="btn btn-secondary btn-small" onClick={downloadUserTemplate}>📄 CSVテンプレート</button>
                         <label className="btn btn-secondary btn-small" style={{ cursor: 'pointer' }}>
-                            📥 一括
+                            📥 CSV一括登録
                             <input type="file" accept=".csv" onChange={handleUserCSVImport} style={{ display: 'none' }} />
                         </label>
                     </div>
@@ -392,8 +392,8 @@ export default function AdminPage() {
                                             {user.isTeacher ? <span className="school-tag" style={{ backgroundColor: '#FF6B9D' }}>全教室</span> : user.schools?.length > 0 ? user.schools.map(s => <span key={s} className="school-tag" style={{ backgroundColor: getSchoolColor(s) }}>{getSchoolName(s)}</span>) : <span style={{ color: '#999', fontSize: '0.8rem' }}>未設定</span>}
                                         </div>
                                         <div className="card-actions">
-                                            <button className="btn-icon" onClick={() => openEditUserModal(user)}>✏️</button>
-                                            {user.id !== 'admin' && <button className="btn-icon" onClick={() => handleDeleteUser(user.id)}>🗑️</button>}
+                                            <button className="btn-edit" onClick={() => openEditUserModal(user)}>編集</button>
+                                            {user.id !== 'admin' && <button className="btn-delete" onClick={() => handleDeleteUser(user.id)}>削除</button>}
                                         </div>
                                     </div>
                                 </div>
@@ -406,10 +406,10 @@ export default function AdminPage() {
             {/* ログ監視タブ */}
             {activeTab === 'logs' && (
                 <div className="admin-card">
-                    <h3>📋 ログ</h3>
+                    <h3>📋 アクセスログ</h3>
                     <div className="btn-group">
-                        <button className="btn btn-secondary btn-small" onClick={downloadLogsCSV}>📥 CSV</button>
-                        <button className="btn btn-danger btn-small" onClick={clearLogs}>クリア</button>
+                        <button className="btn btn-secondary btn-small" onClick={downloadLogsCSV}>📥 CSVダウンロード</button>
+                        <button className="btn btn-danger btn-small" onClick={clearLogs}>ログをクリア</button>
                     </div>
                     <div className="log-list">
                         {logs.length === 0 ? <p style={{ textAlign: 'center' }}>ログがありません</p> : (

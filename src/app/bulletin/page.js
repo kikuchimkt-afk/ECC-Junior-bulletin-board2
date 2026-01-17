@@ -30,19 +30,12 @@ export default function BulletinPage() {
 
     const loadAnnouncements = async () => {
         try {
-            // localStorageからお知らせ取得
-            const stored = localStorage.getItem('ecc_announcements');
-            if (stored) {
-                setAnnouncements(JSON.parse(stored));
-            } else {
-                // 初期データ
-                const initialData = [
-                    { id: 1, year: 2026, month: 1, day: 10, title: '年始のご挨拶', pdfUrl: '' },
-                    { id: 2, year: 2026, month: 1, day: 12, title: 'レッスンの変更のお知らせ', pdfUrl: '' },
-                    { id: 3, year: 2026, month: 2, day: 1, title: '講師の変更のご案内', pdfUrl: '' }
-                ];
-                localStorage.setItem('ecc_announcements', JSON.stringify(initialData));
-                setAnnouncements(initialData);
+            // サーバーからお知らせ取得
+            const response = await fetch('/api/announcements');
+            const result = await response.json();
+
+            if (result.announcements) {
+                setAnnouncements(result.announcements);
             }
         } catch (error) {
             console.error('Error loading announcements:', error);
@@ -51,21 +44,45 @@ export default function BulletinPage() {
         }
     };
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        // ログアウトログを記録
+        const sessionData = sessionStorage.getItem('ecc_session');
+        if (sessionData) {
+            const session = JSON.parse(sessionData);
+            try {
+                await fetch('/api/logs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: session.userId,
+                        action: 'logout',
+                        details: 'ログアウト'
+                    })
+                });
+            } catch (err) {
+                console.error('Logout log error:', err);
+            }
+        }
+
         sessionStorage.removeItem('ecc_session');
         window.location.href = '/';
     };
 
-    const openPdf = (announcement) => {
-        // ログ記録
-        const logs = JSON.parse(localStorage.getItem('ecc_logs') || '[]');
-        logs.unshift({
-            userId: session?.userId,
-            action: 'view_pdf',
-            details: `PDF閲覧: ${announcement.title}`,
-            timestamp: new Date().toISOString()
-        });
-        localStorage.setItem('ecc_logs', JSON.stringify(logs));
+    const openPdf = async (announcement) => {
+        // PDF閲覧ログを記録
+        try {
+            await fetch('/api/logs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: session?.userId,
+                    action: 'view_pdf',
+                    details: `PDF閲覧: ${announcement.title}`
+                })
+            });
+        } catch (err) {
+            console.error('PDF log error:', err);
+        }
 
         if (announcement.pdfUrl) {
             window.open(announcement.pdfUrl, '_blank');

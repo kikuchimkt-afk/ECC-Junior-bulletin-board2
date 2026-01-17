@@ -2,17 +2,11 @@
 
 import { useState, useEffect } from 'react';
 
-// ユーザーデータ（シンプル化：実際はDBに保存）
-const USERS = {
-    'user001': { password: 'pass001', name: '田中 花子', isAdmin: false },
-    'user002': { password: 'pass002', name: '鈴木 太郎', isAdmin: false },
-    'admin': { password: 'adminpass', name: '管理者', isAdmin: true }
-};
-
 export default function LoginPage() {
     const [userId, setUserId] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         // 既にログイン済みならリダイレクト
@@ -23,42 +17,43 @@ export default function LoginPage() {
         }
     }, []);
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
         setError('');
+        setLoading(true);
 
-        const user = USERS[userId];
-        if (!user) {
-            setError('ユーザーIDが見つかりません');
-            return;
+        try {
+            // サーバーサイド認証
+            const response = await fetch('/api/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, password })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                setError(result.error || 'ログインに失敗しました');
+                setLoading(false);
+                return;
+            }
+
+            // セッション保存
+            const session = {
+                userId: result.user.userId,
+                name: result.user.name,
+                isAdmin: result.user.isAdmin,
+                loginTime: new Date().toISOString()
+            };
+            sessionStorage.setItem('ecc_session', JSON.stringify(session));
+
+            // リダイレクト
+            window.location.href = result.user.isAdmin ? '/admin' : '/bulletin';
+        } catch (err) {
+            console.error('Login error:', err);
+            setError('ログイン処理中にエラーが発生しました');
+            setLoading(false);
         }
-
-        if (user.password !== password) {
-            setError('パスワードが正しくありません');
-            return;
-        }
-
-        // セッション保存
-        const session = {
-            userId,
-            name: user.name,
-            isAdmin: user.isAdmin,
-            loginTime: new Date().toISOString()
-        };
-        sessionStorage.setItem('ecc_session', JSON.stringify(session));
-
-        // ログを記録（localStorage）
-        const logs = JSON.parse(localStorage.getItem('ecc_logs') || '[]');
-        logs.unshift({
-            userId,
-            action: 'login',
-            details: 'ログイン成功',
-            timestamp: new Date().toISOString()
-        });
-        localStorage.setItem('ecc_logs', JSON.stringify(logs));
-
-        // リダイレクト
-        window.location.href = user.isAdmin ? '/admin' : '/bulletin';
     };
 
     return (
@@ -79,6 +74,7 @@ export default function LoginPage() {
                             value={userId}
                             onChange={(e) => setUserId(e.target.value)}
                             required
+                            disabled={loading}
                         />
                     </div>
 
@@ -91,10 +87,13 @@ export default function LoginPage() {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
+                            disabled={loading}
                         />
                     </div>
 
-                    <button type="submit" className="btn btn-primary">ログイン</button>
+                    <button type="submit" className="btn btn-primary" disabled={loading}>
+                        {loading ? 'ログイン中...' : 'ログイン'}
+                    </button>
                 </form>
             </div>
         </div>

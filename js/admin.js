@@ -56,7 +56,7 @@ async function loadAnnouncementsList() {
         <tr>
             <td>${item.year}年${item.month}月${item.day}日</td>
             <td>${item.title}</td>
-            <td><a href="${item.pdfPath}" target="_blank">📄 表示</a></td>
+            <td><a href="${item.pdfUrl || item.pdfPath}" target="_blank">📄 表示</a></td>
             <td class="actions">
                 <button class="btn-edit" onclick="editAnnouncement(${item.id})">編集</button>
                 <button class="btn-delete" onclick="deleteAnnouncementConfirm(${item.id})">削除</button>
@@ -88,10 +88,12 @@ function showAnnouncementModal(announcement = null) {
         const dateStr = `${announcement.year}-${String(announcement.month).padStart(2, '0')}-${String(announcement.day).padStart(2, '0')}`;
         dateInput.value = dateStr;
         form.title.value = announcement.title;
-        pdfPathInput.value = announcement.pdfPath;
+        form.content.value = announcement.content || '';
+        pdfPathInput.value = announcement.pdfPath || announcement.pdfUrl;
 
         // 既存PDFパスを表示
-        selectedPdfInfo.textContent = `📎 現在のファイル: ${announcement.pdfPath}`;
+        const currentPath = announcement.pdfUrl || announcement.pdfPath;
+        selectedPdfInfo.textContent = `📎 現在のファイル: ${currentPath}`;
         selectedPdfInfo.classList.add('show');
     } else {
         // 新規モード: 今日の日付をデフォルト
@@ -136,7 +138,8 @@ async function saveAnnouncement(event) {
         month: month,
         day: day,
         title: form.title.value.trim(),
-        pdfPath: pdfPath
+        content: form.content.value.trim(),
+        pdfUrl: pdfPath
     };
 
     try {
@@ -265,6 +268,48 @@ async function deleteUserConfirm(id) {
     }
 }
 
+/**
+ * ユーザー一覧をCSVでダウンロード
+ */
+async function downloadUsersCSV() {
+    try {
+        const users = await DB.getAllUsers();
+        if (!users || users.length === 0) {
+            alert('ユーザーデータがありません');
+            return;
+        }
+
+        // CSVヘッダー
+        let csvContent = "ユーザーID,名前,パスワード,管理者権限\n";
+
+        // データ行
+        users.forEach(user => {
+            const isAdmin = user.isAdmin ? "管理者" : "一般";
+            csvContent += `"${user.id}","${user.name}","${user.password}","${isAdmin}"\n`;
+        });
+
+        // BOM（Excelでの文字化け防止）を追加してBlob作成
+        const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+        const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
+
+        // ダウンロードリンクを作成して実行
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+
+        link.setAttribute("href", url);
+        link.setAttribute("download", `ecc_users_${timestamp}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+    } catch (error) {
+        console.error('Export error:', error);
+        alert('ダウンロード中にエラーが発生しました');
+    }
+}
+
 // ========== ログ管理 ==========
 
 async function loadLogsList() {
@@ -344,6 +389,7 @@ window.Admin = {
     saveUser,
     editUser,
     deleteUserConfirm,
+    downloadUsersCSV,
     loadLogsList,
     populateLogFilters,
     clearAllLogs
@@ -356,6 +402,7 @@ window.hideAnnouncementModal = hideAnnouncementModal;
 window.saveAnnouncement = saveAnnouncement;
 window.editAnnouncement = editAnnouncement;
 window.deleteAnnouncementConfirm = deleteAnnouncementConfirm;
+window.downloadUsersCSV = downloadUsersCSV;
 window.showUserModal = showUserModal;
 window.hideUserModal = hideUserModal;
 window.saveUser = saveUser;
@@ -370,9 +417,9 @@ window.clearAllLogs = clearAllLogs;
 let uploadedPdfData = null;
 
 /**
- * PDFファイルアップロードハンドラ
+ * PDFファイルアップロードハンドラ - Vercel Blob API版
  */
-function handlePdfUpload(event) {
+async function handlePdfUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
 
@@ -383,81 +430,38 @@ function handlePdfUpload(event) {
         return;
     }
 
-    // ファイル名からパスを生成
-    const fileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_'); // 安全なファイル名に変換
-    const pdfPath = `pdfs/${fileName}`;
-
-    // パスを入力欄に設定
-    const pdfPathInput = document.getElementById('pdfPathInput');
-    pdfPathInput.value = pdfPath;
-
-    // 選択したファイル情報を表示
+    // 選択したファイル情報を表示（アップロード中）
     const selectedPdfInfo = document.getElementById('selected-pdf-info');
-    selectedPdfInfo.textContent = `✅ 選択済み: ${file.name} (${formatFileSize(file.size)})`;
+    selectedPdfInfo.textContent = `⏳ アップロード中: ${file.name}...`;
     selectedPdfInfo.classList.add('show');
 
-    // PDFデータをBase64として保存（IndexedDBに保存するため）
-    const reader = new FileReader();
-    reader.onload = function (e) {
-        uploadedPdfData = {
-            name: fileName,
-            path: pdfPath,
-            data: e.target.result,
-            type: file.type,
-            size: file.size
-        };
-
-        // IndexedDBにPDFを保存
-        savePdfToStorage(uploadedPdfData);
-    };
-    reader.readAsDataURL(file);
-}
-
-/**
- * ファイルサイズをフォーマット
- */
-function formatFileSize(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
-/**
- * PDFをIndexedDBに保存
- */
-async function savePdfToStorage(pdfData) {
     try {
-        // pdfsストアがなければ新しいDBバージョンが必要
-        // 今回は簡易的にlocalStorageに保存（小さいファイル向け）
-        // 大きなファイルにはIndexedDBの追加ストアが必要
+        const formData = new FormData();
+        formData.append('file', file);
 
-        // Base64データをlocalStorageに保存
-        const storedPdfs = JSON.parse(localStorage.getItem('uploaded_pdfs') || '{}');
-        storedPdfs[pdfData.path] = pdfData.data;
-        localStorage.setItem('uploaded_pdfs', JSON.stringify(storedPdfs));
+        const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData
+        });
 
-        console.log('PDF saved to storage:', pdfData.path);
-    } catch (error) {
-        console.error('Error saving PDF:', error);
-        // ストレージ容量超過の場合
-        if (error.name === 'QuotaExceededError') {
-            alert('ストレージ容量が不足しています。古いPDFを削除してください。');
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || 'Upload failed');
         }
-    }
-}
 
-/**
- * 保存されたPDFを取得
- */
-function getStoredPdf(pdfPath) {
-    try {
-        const storedPdfs = JSON.parse(localStorage.getItem('uploaded_pdfs') || '{}');
-        return storedPdfs[pdfPath];
+        // パスを入力欄に設定
+        const pdfPathInput = document.getElementById('pdfPathInput');
+        pdfPathInput.value = result.url; // Blob URLをセット
+
+        // 完了表示
+        selectedPdfInfo.textContent = `✅ アップロード完了: ${file.name}`;
+        console.log('PDF uploaded to Vercel Blob:', result.url);
     } catch (error) {
-        console.error('Error getting PDF:', error);
-        return null;
+        console.error('Error uploading PDF:', error);
+        selectedPdfInfo.textContent = `❌ アップロード失敗: ${error.message}`;
+        alert('アップロード中にエラーが発生しました');
     }
 }
 
 window.handlePdfUpload = handlePdfUpload;
-window.getStoredPdf = getStoredPdf;

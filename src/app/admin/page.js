@@ -29,9 +29,14 @@ export default function AdminPage() {
     const [userFormId, setUserFormId] = useState('');
     const [userFormPassword, setUserFormPassword] = useState('');
     const [userFormName, setUserFormName] = useState('');
+    const [userFormEmail, setUserFormEmail] = useState(''); // メールアドレス
     const [userFormIsAdmin, setUserFormIsAdmin] = useState(false);
-    const [userFormIsTeacher, setUserFormIsTeacher] = useState(false); // 講師フラグ
+    const [userFormIsTeacher, setUserFormIsTeacher] = useState(false);
     const [userFormSchools, setUserFormSchools] = useState([]);
+
+    // メール通知
+    const [sendNotification, setSendNotification] = useState(false);
+    const [sending, setSending] = useState(false);
 
     useEffect(() => {
         const sessionData = sessionStorage.getItem('ecc_session');
@@ -135,17 +140,43 @@ export default function AdminPage() {
         if (!formDate || !formTitle) { alert('日付とタイトルを入力してください'); return; }
         const [year, month, day] = formDate.split('-').map(Number);
         try {
+            let savedAnnouncement = null;
             if (editingAnnouncement) {
-                await fetch(`/api/announcements/${editingAnnouncement.id}`, {
+                const res = await fetch(`/api/announcements/${editingAnnouncement.id}`, {
                     method: 'PUT', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ year, month, day, title: formTitle, pdfUrl: formPdfUrl, schools: formSchools })
                 });
+                const data = await res.json();
+                savedAnnouncement = data.announcement;
             } else {
-                await fetch('/api/announcements', {
+                const res = await fetch('/api/announcements', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ year, month, day, title: formTitle, pdfUrl: formPdfUrl, schools: formSchools })
                 });
+                const data = await res.json();
+                savedAnnouncement = data.announcement;
             }
+
+            // メール通知送信（新規登録時のみ）
+            if (!editingAnnouncement && sendNotification && savedAnnouncement) {
+                setSending(true);
+                try {
+                    const notifyRes = await fetch('/api/notify', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ announcement: { ...savedAnnouncement, year, month, day, title: formTitle }, targetSchools: formSchools })
+                    });
+                    const notifyData = await notifyRes.json();
+                    if (notifyData.sent > 0) {
+                        alert(`✉️ メール通知を${notifyData.sent}件送信しました`);
+                    } else if (notifyData.skipped) {
+                        console.log('Email notification skipped: API key not configured');
+                    }
+                } catch (notifyErr) {
+                    console.error('Notify error:', notifyErr);
+                }
+                setSending(false);
+            }
+
             closeModal();
             loadAnnouncements();
         } catch (error) { console.error('Save announcement error:', error); alert('保存に失敗しました'); }
@@ -163,6 +194,7 @@ export default function AdminPage() {
         setUserFormId('');
         setUserFormPassword('');
         setUserFormName('');
+        setUserFormEmail('');
         setUserFormIsAdmin(false);
         setUserFormIsTeacher(false);
         setUserFormSchools([]);
@@ -174,6 +206,7 @@ export default function AdminPage() {
         setUserFormId(user.id);
         setUserFormPassword('');
         setUserFormName(user.name);
+        setUserFormEmail(user.email || '');
         setUserFormIsAdmin(user.isAdmin);
         setUserFormIsTeacher(user.isTeacher || false);
         setUserFormSchools(user.schools || []);
@@ -196,13 +229,13 @@ export default function AdminPage() {
             if (editingUser) {
                 const response = await fetch(`/api/users/${userFormId}`, {
                     method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password: userFormPassword || undefined, name: userFormName, isAdmin: userFormIsAdmin, isTeacher: userFormIsTeacher, schools: userFormSchools })
+                    body: JSON.stringify({ password: userFormPassword || undefined, name: userFormName, email: userFormEmail, isAdmin: userFormIsAdmin, isTeacher: userFormIsTeacher, schools: userFormSchools })
                 });
                 if (!response.ok) { const result = await response.json(); alert(result.error || '更新に失敗しました'); return; }
             } else {
                 const response = await fetch('/api/users', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: userFormId, password: userFormPassword, name: userFormName, isAdmin: userFormIsAdmin, isTeacher: userFormIsTeacher, schools: userFormSchools })
+                    body: JSON.stringify({ id: userFormId, password: userFormPassword, name: userFormName, email: userFormEmail, isAdmin: userFormIsAdmin, isTeacher: userFormIsTeacher, schools: userFormSchools })
                 });
                 if (!response.ok) { const result = await response.json(); alert(result.error || '登録に失敗しました'); return; }
             }
@@ -221,8 +254,8 @@ export default function AdminPage() {
     // CSVテンプレート
     const downloadUserTemplate = () => {
         const bom = '\uFEFF';
-        const headers = ['ユーザーID', 'パスワード', '名前', '講師(1=はい)', '所属教室'];
-        const example = ['user003', 'pass003', '山田 花子', '0', 'aizumi-jr,aizumi-bo'];
+        const headers = ['ユーザーID', 'パスワード', '名前', 'メールアドレス', '講師(1=はい)', '所属教室'];
+        const example = ['user003', 'pass003', '山田 花子', 'yamada@example.com', '0', 'aizumi-jr,aizumi-bo'];
         const csvContent = bom + [headers, example].map(row => row.join(',')).join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -247,14 +280,14 @@ export default function AdminPage() {
                 for (const line of dataLines) {
                     const parts = line.match(/("?[^"]*"?|[^,]+)/g)?.map(p => p.replace(/^"|"$/g, '').trim()) || [];
                     if (parts.length < 3) { errorCount++; errors.push(`無効な行: ${line}`); continue; }
-                    const [id, password, name, isTeacherStr, schoolsStr] = parts;
+                    const [id, password, name, email, isTeacherStr, schoolsStr] = parts;
                     if (!id || !password || !name) { errorCount++; errors.push(`必須項目が空: ${line}`); continue; }
                     const isTeacher = isTeacherStr === '1';
                     const schools = schoolsStr ? schoolsStr.split(',').map(s => s.trim()).filter(s => s) : [];
                     try {
                         const response = await fetch('/api/users', {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ id, password, name, isAdmin: false, isTeacher, schools })
+                            body: JSON.stringify({ id, password, name, email: email || '', isAdmin: false, isTeacher, schools })
                         });
                         if (response.ok) { successCount++; } else { const result = await response.json(); errorCount++; errors.push(`${id}: ${result.error}`); }
                     } catch (err) { errorCount++; errors.push(`${id}: エラー`); }
@@ -459,7 +492,20 @@ export default function AdminPage() {
                                 </div>
                                 {selectedFileName && <div className="selected-file show">{selectedFileName}</div>}
                             </div>
-                            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '15px' }} disabled={uploading}>保存</button>
+
+                            {!editingAnnouncement && (
+                                <div className="form-group">
+                                    <label className="checkbox-label">
+                                        <input type="checkbox" checked={sendNotification} onChange={(e) => setSendNotification(e.target.checked)} />
+                                        <span>✉️ 登録後にメール通知を送信する</span>
+                                    </label>
+                                    <small style={{ color: '#888' }}>※メール登録済みのユーザーに送信</small>
+                                </div>
+                            )}
+
+                            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '15px' }} disabled={uploading || sending}>
+                                {sending ? '送信中...' : '保存'}
+                            </button>
                         </form>
                     </div>
                 </div>
@@ -475,6 +521,7 @@ export default function AdminPage() {
                             <div className="form-group"><label>ID</label><input type="text" placeholder="user003" value={userFormId} onChange={(e) => setUserFormId(e.target.value)} required disabled={!!editingUser} /></div>
                             <div className="form-group"><label>パスワード{editingUser && '（変更時のみ）'}</label><input type="text" placeholder={editingUser ? '空欄=変更なし' : 'パスワード'} value={userFormPassword} onChange={(e) => setUserFormPassword(e.target.value)} required={!editingUser} /></div>
                             <div className="form-group"><label>名前</label><input type="text" placeholder="山田 太郎" value={userFormName} onChange={(e) => setUserFormName(e.target.value)} required /></div>
+                            <div className="form-group"><label>✉️ メールアドレス</label><input type="email" placeholder="example@email.com（任意）" value={userFormEmail} onChange={(e) => setUserFormEmail(e.target.value)} /></div>
 
                             <div className="form-group">
                                 <label>役割</label>

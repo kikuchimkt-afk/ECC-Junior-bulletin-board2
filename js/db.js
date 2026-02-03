@@ -1,295 +1,153 @@
 /**
- * IndexedDB Helper - ECC Junior Bulletin Board
- * データベース管理ユーティリティ
+ * API Helper - ECC Junior Bulletin Board
+ * Vercel KV / API 連携ユーティリティ
  */
-
-const DB_NAME = 'ECCBulletinDB';
-const DB_VERSION = 1;
-
-let db = null;
 
 /**
- * データベースを初期化
+ * データベースを初期化（API版では何もしない）
  */
 async function initDatabase() {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-        request.onerror = () => {
-            console.error('Database error:', request.error);
-            reject(request.error);
-        };
-
-        request.onsuccess = () => {
-            db = request.result;
-            console.log('Database opened successfully');
-            resolve(db);
-        };
-
-        request.onupgradeneeded = (event) => {
-            const database = event.target.result;
-
-            // ユーザーストア
-            if (!database.objectStoreNames.contains('users')) {
-                const usersStore = database.createObjectStore('users', { keyPath: 'id' });
-                usersStore.createIndex('isAdmin', 'isAdmin', { unique: false });
-            }
-
-            // お知らせストア
-            if (!database.objectStoreNames.contains('announcements')) {
-                const announcementsStore = database.createObjectStore('announcements', { keyPath: 'id', autoIncrement: true });
-                announcementsStore.createIndex('yearMonth', ['year', 'month'], { unique: false });
-                announcementsStore.createIndex('createdAt', 'createdAt', { unique: false });
-            }
-
-            // ログストア
-            if (!database.objectStoreNames.contains('logs')) {
-                const logsStore = database.createObjectStore('logs', { keyPath: 'id', autoIncrement: true });
-                logsStore.createIndex('userId', 'userId', { unique: false });
-                logsStore.createIndex('action', 'action', { unique: false });
-                logsStore.createIndex('timestamp', 'timestamp', { unique: false });
-            }
-
-            console.log('Database schema created/upgraded');
-        };
-    });
+    console.log('API abstraction initialized');
+    return Promise.resolve();
 }
 
 /**
- * 初期データを挿入
+ * 初期データを挿入（API版では何もしない、またはサーバー側で初回に自動的に行われる）
  */
 async function seedInitialData() {
-    // 既存データがあるかチェック
-    const existingUsers = await getAllUsers();
-    if (existingUsers.length > 0) {
-        console.log('Initial data already exists');
-        return;
-    }
-
-    // サンプルユーザー
-    const users = [
-        { id: 'user001', password: 'pass001', name: '田中 花子', isAdmin: false },
-        { id: 'user002', password: 'pass002', name: '鈴木 太郎', isAdmin: false },
-        { id: 'admin', password: 'adminpass', name: '管理者', isAdmin: true }
-    ];
-
-    for (const user of users) {
-        await addUser(user);
-    }
-
-    // サンプルお知らせ
-    const announcements = [
-        {
-            year: 2026,
-            month: 1,
-            day: 10,
-            title: '年始のご挨拶',
-            pdfPath: 'pdfs/sample_newyear.pdf',
-            createdAt: new Date('2026-01-10').toISOString()
-        },
-        {
-            year: 2026,
-            month: 1,
-            day: 12,
-            title: 'レッスンの変更のお知らせ',
-            pdfPath: 'pdfs/sample_lesson_change.pdf',
-            createdAt: new Date('2026-01-12').toISOString()
-        },
-        {
-            year: 2026,
-            month: 2,
-            day: 1,
-            title: '講師の変更のご案内',
-            pdfPath: 'pdfs/sample_instructor.pdf',
-            createdAt: new Date('2026-02-01').toISOString()
-        }
-    ];
-
-    for (const announcement of announcements) {
-        await addAnnouncement(announcement);
-    }
-
-    console.log('Initial data seeded successfully');
+    console.log('Seeding is handled by the server-side API if necessary');
+    return Promise.resolve();
 }
 
 // ========== ユーザー関連 ==========
 
 async function addUser(user) {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['users'], 'readwrite');
-        const store = transaction.objectStore('users');
-        const request = store.add(user);
-
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
+    const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(user)
     });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Failed to add user');
+    return result.user;
 }
 
 async function getUser(id) {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['users'], 'readonly');
-        const store = transaction.objectStore('users');
-        const request = store.get(id);
-
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-    });
+    // ログイン用の個別取得APIがないため、全取得からフィルター
+    // 本来はAuth APIを使用すべき
+    const users = await getAllUsers();
+    return users.find(u => u.id === id);
 }
 
 async function getAllUsers() {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['users'], 'readonly');
-        const store = transaction.objectStore('users');
-        const request = store.getAll();
-
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-    });
+    const response = await fetch('/api/users');
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Failed to fetch users');
+    return result.users;
 }
 
 async function updateUser(user) {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['users'], 'readwrite');
-        const store = transaction.objectStore('users');
-        const request = store.put(user);
-
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
+    const response = await fetch(`/api/users/${user.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(user)
     });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Failed to update user');
+    return result.user;
 }
 
 async function deleteUser(id) {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['users'], 'readwrite');
-        const store = transaction.objectStore('users');
-        const request = store.delete(id);
-
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
+    const response = await fetch(`/api/users/${id}`, {
+        method: 'DELETE'
     });
+    if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Failed to delete user');
+    }
 }
 
 // ========== お知らせ関連 ==========
 
 async function addAnnouncement(announcement) {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['announcements'], 'readwrite');
-        const store = transaction.objectStore('announcements');
-        
-        if (!announcement.createdAt) {
-            announcement.createdAt = new Date().toISOString();
-        }
-        
-        const request = store.add(announcement);
-
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
+    const response = await fetch('/api/announcements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(announcement)
     });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Failed to add announcement');
+    return result.announcement;
 }
 
 async function getAnnouncement(id) {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['announcements'], 'readonly');
-        const store = transaction.objectStore('announcements');
-        const request = store.get(id);
-
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-    });
+    const announcements = await getAllAnnouncements();
+    return announcements.find(a => a.id === parseInt(id));
 }
 
 async function getAllAnnouncements() {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['announcements'], 'readonly');
-        const store = transaction.objectStore('announcements');
-        const request = store.getAll();
-
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-    });
+    const response = await fetch('/api/announcements');
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Failed to fetch announcements');
+    return result.announcements;
 }
 
 async function updateAnnouncement(announcement) {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['announcements'], 'readwrite');
-        const store = transaction.objectStore('announcements');
-        const request = store.put(announcement);
-
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
+    const response = await fetch(`/api/announcements/${announcement.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(announcement)
     });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Failed to update announcement');
+    return result.announcement;
 }
 
 async function deleteAnnouncement(id) {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['announcements'], 'readwrite');
-        const store = transaction.objectStore('announcements');
-        const request = store.delete(id);
-
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
+    const response = await fetch(`/api/announcements/${id}`, {
+        method: 'DELETE'
     });
+    if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Failed to delete announcement');
+    }
 }
 
 // ========== ログ関連 ==========
 
 async function addLog(logEntry) {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['logs'], 'readwrite');
-        const store = transaction.objectStore('logs');
-        
-        logEntry.timestamp = new Date().toISOString();
-        
-        const request = store.add(logEntry);
-
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
+    const response = await fetch('/api/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(logEntry)
     });
+    if (!response.ok) {
+        console.warn('Failed to add log entry');
+    }
 }
 
 async function getAllLogs() {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['logs'], 'readonly');
-        const store = transaction.objectStore('logs');
-        const request = store.getAll();
-
-        request.onsuccess = () => {
-            // 新しい順にソート
-            const logs = request.result.sort((a, b) => 
-                new Date(b.timestamp) - new Date(a.timestamp)
-            );
-            resolve(logs);
-        };
-        request.onerror = () => reject(request.error);
-    });
+    const response = await fetch('/api/logs');
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Failed to fetch logs');
+    return result.logs;
 }
 
 async function getLogsByUser(userId) {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['logs'], 'readonly');
-        const store = transaction.objectStore('logs');
-        const index = store.index('userId');
-        const request = index.getAll(userId);
-
-        request.onsuccess = () => {
-            const logs = request.result.sort((a, b) => 
-                new Date(b.timestamp) - new Date(a.timestamp)
-            );
-            resolve(logs);
-        };
-        request.onerror = () => reject(request.error);
-    });
+    const response = await fetch(`/api/logs?userId=${userId}`);
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Failed to fetch user logs');
+    return result.logs;
 }
 
 async function clearLogs() {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(['logs'], 'readwrite');
-        const store = transaction.objectStore('logs');
-        const request = store.clear();
-
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
+    const response = await fetch('/api/logs', {
+        method: 'DELETE'
     });
+    if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Failed to clear logs');
+    }
 }
 
 // ========== エクスポート ==========

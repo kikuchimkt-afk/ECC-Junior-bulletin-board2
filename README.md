@@ -53,6 +53,40 @@ git push -u origin main
 ## 技術スタック
 
 - **フレームワーク**: Next.js 14 (App Router)
-- **ストレージ**: Vercel Blob
+- **ストレージ**: Vercel Blob, Vercel KV
+- **メール**: Resend
 - **スタイル**: カスタムCSS (パステルカラーの可愛いデザイン)
-- **データ**: localStorage + sessionStorage
+
+---
+
+## 📧 メール通知設定（任意）
+
+お知らせ登録時にメール通知を送信する機能があります。設定しなくても掲示板は正常に動作します。
+
+### 1. Resendアカウント作成
+
+1. https://resend.com にアクセス
+2. 「Get Started」でアカウント作成（GitHub連携可）
+3. ダッシュボードで「API Keys」→「Create API Key」
+4. 生成されたキー（`re_xxxxxxxx`）をコピー
+
+### 2. Vercelに環境変数を設定
+
+Vercelダッシュボード → プロジェクト → Settings → Environment Variables
+
+| 変数名 | 値 | 備考 |
+|--------|-----|------|
+| `RESEND_API_KEY` | `re_xxxxxxxx` | Resendで取得したAPIキー |
+| `RESEND_FROM_EMAIL` | `ECC in Tokushima <onboarding@resend.dev>` | 送信元アドレス |
+| `NEXT_PUBLIC_APP_URL` | `https://your-app.vercel.app` | 掲示板のURL |
+
+### 3. 再デプロイ
+
+環境変数を設定後、Vercelで「Redeploy」を実行
+
+### 注意事項
+
+- **無料プラン**: 月3,000通まで
+- **送信元ドメイン**: 独自ドメインを使う場合はResendでDNS設定が必要
+- **未設定でもOK**: チェックを入れても送信されないだけでエラーにはなりません
+

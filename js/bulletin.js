@@ -80,12 +80,20 @@ async function renderAnnouncements() {
         `;
 
         group.items.forEach(item => {
+            const pdfUrl = item.pdfUrl || item.pdfPath;
             html += `
                 <div class="announcement-item">
-                    <span class="announcement-date">${group.month}月${item.day}日配信</span>
-                    <span class="announcement-title">${item.title}</span>
-                    <a href="javascript:void(0)" class="announcement-link" 
-                       onclick="openPdf(${item.id}, '${item.pdfPath}', '${item.title}')">${item.title}</a>
+                    <div class="announcement-header">
+                        <span class="announcement-date">${group.month}月${item.day}日配信</span>
+                        <span class="announcement-title">${item.title}</span>
+                    </div>
+                    ${item.content ? `<div class="announcement-content">${item.content.replace(/\n/g, '<br>')}</div>` : ''}
+                    <div class="announcement-footer">
+                        <a href="${pdfUrl}" target="_blank" class="btn btn-primary btn-small pdf-button" 
+                           onclick="Auth.logPdfView(${item.id}, '${item.title}')">
+                            📄 PDFの内容を確認する
+                        </a>
+                    </div>
                 </div>
             `;
         });
@@ -101,38 +109,18 @@ async function renderAnnouncements() {
 
 /**
  * PDF を開く
- * localStorageに保存されたPDFがあればそれを開く
- * なければ通常のパスで開く
  */
-async function openPdf(id, pdfPath, title) {
-    // ログを記録
-    await Auth.logPdfView(id, title);
-
-    // localStorageから保存されたPDFを取得
-    try {
-        const storedPdfs = JSON.parse(localStorage.getItem('uploaded_pdfs') || '{}');
-        const pdfData = storedPdfs[pdfPath];
-
-        if (pdfData) {
-            // Base64データをBlobに変換して新しいタブで開く
-            const byteCharacters = atob(pdfData.split(',')[1]);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }
-            const byteArray = new Uint8Array(byteNumbers);
-            const blob = new Blob([byteArray], { type: 'application/pdf' });
-            const blobUrl = URL.createObjectURL(blob);
-            window.open(blobUrl, '_blank');
-        } else {
-            // 通常のファイルパスで開く
-            window.open(pdfPath, '_blank');
-        }
-    } catch (error) {
-        console.error('Error opening PDF:', error);
-        // エラー時は通常のパスで開く
-        window.open(pdfPath, '_blank');
+async function openPdf(id, pdfUrl, title) {
+    if (!pdfUrl) {
+        alert('PDFファイルが見つかりません');
+        return;
     }
+
+    // iPad/iOSのポップアップブロック対策: 直接ブラウザで開く
+    window.open(pdfUrl, '_blank');
+
+    // ログはバックグラウンドで記録（完了を待たない）
+    Auth.logPdfView(id, title).catch(err => console.error('Logging error:', err));
 }
 
 /**

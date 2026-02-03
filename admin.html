@@ -63,9 +63,14 @@
         <div id="tab-users" class="tab-content">
             <div class="admin-card">
                 <h3>👥 ユーザー一覧</h3>
-                <button class="btn btn-primary btn-small" onclick="showUserModal()" style="margin-bottom: 20px;">
-                    ＋ 新しいユーザーを追加
-                </button>
+                <div class="admin-actions-bar" style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn btn-primary btn-small" onclick="showUserModal()">
+                        ＋ 新しいユーザーを追加
+                    </button>
+                    <button class="btn btn-secondary btn-small" onclick="downloadUsersCSV()">
+                        📋 ユーザー一覧をダウンロード (CSV)
+                    </button>
+                </div>
 
                 <div style="overflow-x: auto;">
                     <table class="data-table">
@@ -142,6 +147,12 @@
                 <div class="form-group">
                     <label for="title">タイトル</label>
                     <input type="text" name="title" placeholder="例: 年始のご挨拶" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="content">お知らせ内容 (メッセージ)</label>
+                    <textarea name="content" id="announcementContent" rows="4"
+                        placeholder="表示するメッセージを入力してください"></textarea>
                 </div>
 
                 <div class="form-group">

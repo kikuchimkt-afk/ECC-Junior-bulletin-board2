@@ -63,6 +63,7 @@ export async function POST(request) {
             month: parseInt(month),
             day: parseInt(day),
             title,
+            content: body.content || '',
             pdfUrl: pdfUrl || '',
             schools: body.schools || []
         };

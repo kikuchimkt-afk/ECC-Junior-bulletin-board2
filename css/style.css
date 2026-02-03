@@ -75,8 +75,15 @@ body {
 }
 
 @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
 }
 
 .header h1 {
@@ -231,9 +238,19 @@ body {
 }
 
 @keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-5px); }
-    75% { transform: translateX(5px); }
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-5px);
+    }
+
+    75% {
+        transform: translateX(5px);
+    }
 }
 
 /* ===== Navigation ===== */
@@ -299,8 +316,8 @@ body {
 
 .announcement-item {
     display: flex;
-    align-items: center;
-    padding: 15px 0;
+    flex-direction: column;
+    padding: 20px 0;
     border-bottom: 1px dashed var(--accent-lavender);
     transition: var(--transition);
 }
@@ -309,11 +326,32 @@ body {
     border-bottom: none;
 }
 
-.announcement-item:hover {
+.announcement-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.announcement-content {
     background: var(--accent-lavender);
-    margin: 0 -25px;
-    padding: 15px 25px;
+    padding: 15px;
     border-radius: var(--border-radius-sm);
+    font-size: 0.95rem;
+    margin-bottom: 15px;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    line-height: 1.6;
+}
+
+.announcement-footer {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.pdf-button {
+    width: auto !important;
+    min-width: 200px;
+    box-shadow: var(--shadow-soft);
 }
 
 .announcement-date {
@@ -330,26 +368,8 @@ body {
 .announcement-title {
     flex: 1;
     color: var(--text-primary);
-    font-size: 1rem;
-}
-
-.announcement-link {
-    color: var(--primary-pink-dark);
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-weight: 500;
-    transition: var(--transition);
-}
-
-.announcement-link:hover {
-    color: var(--secondary-mint-dark);
-}
-
-.announcement-link::after {
-    content: '📄';
-    font-size: 1.2rem;
+    font-size: 1.1rem;
+    font-weight: 700;
 }
 
 /* ===== Admin Panel ===== */
@@ -583,45 +603,45 @@ body {
     .container {
         padding: 15px;
     }
-    
+
     .header {
         padding: 20px;
     }
-    
+
     .header h1 {
         font-size: 1.4rem;
     }
-    
+
     .login-card {
         padding: 40px 25px;
     }
-    
+
     .month-header {
         padding: 15px 20px;
     }
-    
+
     .announcement-list {
         padding: 10px 20px;
     }
-    
+
     .announcement-item {
         flex-direction: column;
         align-items: flex-start;
         gap: 10px;
     }
-    
+
     .announcement-date {
         margin-right: 0;
     }
-    
+
     .admin-card {
         padding: 20px;
     }
-    
+
     .data-table {
         font-size: 0.85rem;
     }
-    
+
     .data-table th,
     .data-table td {
         padding: 10px 8px;

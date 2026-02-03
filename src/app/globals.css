@@ -684,6 +684,28 @@ body {
     font-size: 1.2rem;
 }
 
+/* ===== Checkbox Label ===== */
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    padding: 10px 15px;
+    background: var(--accent-lavender);
+    border-radius: var(--border-radius-sm);
+    transition: var(--transition);
+}
+
+.checkbox-label:hover {
+    background: var(--accent-peach);
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary-pink);
+}
+
 /* ===== Empty State ===== */
 .empty-state {
     text-align: center;

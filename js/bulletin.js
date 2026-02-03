@@ -89,8 +89,8 @@ async function renderAnnouncements() {
                     </div>
                     ${item.content ? `<div class="announcement-content">${item.content.replace(/\n/g, '<br>')}</div>` : ''}
                     <div class="announcement-footer">
-                        <a href="${pdfUrl}" target="_blank" class="btn btn-primary btn-small pdf-button" 
-                           onclick="Auth.logPdfView(${item.id}, '${item.title}')">
+                        <a href="${pdfUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-small pdf-button" 
+                           onclick="Auth.logPdfView(${item.id}, '${item.title}'); return true;">
                             📄 PDFの内容を確認する
                         </a>
                     </div>

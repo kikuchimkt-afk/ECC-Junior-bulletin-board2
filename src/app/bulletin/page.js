@@ -170,15 +170,12 @@ export default function BulletinPage() {
                             <div className="announcement-list">
                                 {group.items.sort((a, b) => b.day - a.day).map((item) => (
                                     <div key={item.id} className="announcement-item" onClick={() => setSelectedAnnouncement(item)} style={{ cursor: 'pointer' }}>
-                                        <div className="announcement-main">
+                                        <div className="announcement-main" style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
                                             <span className="announcement-date">{item.month}/{item.day}</span>
-                                            <span className="announcement-title">{item.title}</span>
-                                        </div>
-                                        <div className="announcement-footer" style={{ marginTop: '5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div className="school-tags">
+                                            <span className="announcement-title" style={{ flex: '1', minWidth: '200px' }}>{item.title}</span>
+                                            <div className="school-tags" style={{ marginTop: '0' }}>
                                                 {item.schools?.length > 0 ? item.schools.map(s => <span key={s} className="school-tag" style={{ backgroundColor: getSchoolColor(s) }}>{getSchoolName(s)}</span>) : <span className="school-tag" style={{ backgroundColor: '#999' }}>全教室</span>}
                                             </div>
-                                            <span style={{ fontSize: '0.8rem', color: '#888' }}>詳細を表示 ＞</span>
                                         </div>
                                     </div>
                                 ))}

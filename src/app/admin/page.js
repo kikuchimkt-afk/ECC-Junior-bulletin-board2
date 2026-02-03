@@ -169,8 +169,13 @@ export default function AdminPage() {
                         body: JSON.stringify({ announcement: { ...savedAnnouncement, year, month, day, title: formTitle }, targetSchools: formSchools })
                     });
                     const notifyData = await notifyRes.json();
-                    if (notifyData.sent > 0) {
+
+                    if (notifyData.error) {
+                        alert(`✉️ メール送信エラー: ${notifyData.error}`);
+                    } else if (notifyData.sent > 0) {
                         alert(`✉️ メール通知を${notifyData.sent}件送信しました`);
+                    } else if (notifyData.message) {
+                        alert(`✉️ ${notifyData.message}`);
                     } else if (notifyData.skipped) {
                         console.log('Email notification skipped: API key not configured');
                     }

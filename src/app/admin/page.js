@@ -21,6 +21,7 @@ export default function AdminPage() {
     // お知らせフォーム状態
     const [formDate, setFormDate] = useState('');
     const [formTitle, setFormTitle] = useState('');
+    const [formContent, setFormContent] = useState('');
     const [formPdfUrl, setFormPdfUrl] = useState('');
     const [selectedFileName, setSelectedFileName] = useState('');
     const [formSchools, setFormSchools] = useState([]);
@@ -91,6 +92,7 @@ export default function AdminPage() {
         setEditingAnnouncement(null);
         setFormDate(new Date().toISOString().split('T')[0]);
         setFormTitle('');
+        setFormContent('');
         setFormPdfUrl('');
         setSelectedFileName('');
         setFormSchools([]);
@@ -101,6 +103,7 @@ export default function AdminPage() {
         setEditingAnnouncement(announcement);
         setFormDate(`${announcement.year}-${String(announcement.month).padStart(2, '0')}-${String(announcement.day).padStart(2, '0')}`);
         setFormTitle(announcement.title);
+        setFormContent(announcement.content || '');
         setFormPdfUrl(announcement.pdfUrl || '');
         setSelectedFileName(announcement.pdfUrl ? 'アップロード済み' : '');
         setFormSchools(announcement.schools || []);
@@ -144,14 +147,14 @@ export default function AdminPage() {
             if (editingAnnouncement) {
                 const res = await fetch(`/api/announcements/${editingAnnouncement.id}`, {
                     method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ year, month, day, title: formTitle, pdfUrl: formPdfUrl, schools: formSchools })
+                    body: JSON.stringify({ year, month, day, title: formTitle, content: formContent, pdfUrl: formPdfUrl, schools: formSchools })
                 });
                 const data = await res.json();
                 savedAnnouncement = data.announcement;
             } else {
                 const res = await fetch('/api/announcements', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ year, month, day, title: formTitle, pdfUrl: formPdfUrl, schools: formSchools })
+                    body: JSON.stringify({ year, month, day, title: formTitle, content: formContent, pdfUrl: formPdfUrl, schools: formSchools })
                 });
                 const data = await res.json();
                 savedAnnouncement = data.announcement;
@@ -261,6 +264,29 @@ export default function AdminPage() {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url; link.download = 'user_template.csv'; link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    // 全ユーザーデータのダウンロード (エクスポート)
+    const downloadAllUsersCSV = () => {
+        if (users.length === 0) { alert('ユーザーデータがありません'); return; }
+        const bom = '\uFEFF';
+        const headers = ['ユーザーID', 'パスワード', '名前', 'メールアドレス', '管理者(1=はい)', '講師(1=はい)', '所属教室'];
+        const rows = users.map(user => [
+            user.id,
+            user.password,
+            user.name,
+            user.email || '',
+            user.isAdmin ? '1' : '0',
+            user.isTeacher ? '1' : '0',
+            (user.schools || []).join(',')
+        ]);
+        const csvContent = bom + [headers, ...rows].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        link.href = url; link.download = `ecc_users_backup_${timestamp}.csv`; link.click();
         URL.revokeObjectURL(url);
     };
 
@@ -406,6 +432,7 @@ export default function AdminPage() {
                     <h3>👥 ユーザー一覧</h3>
                     <div className="btn-group">
                         <button className="btn btn-primary btn-small" onClick={openAddUserModal}>＋ 新しいユーザーを登録</button>
+                        <button className="btn btn-secondary btn-small" onClick={downloadAllUsersCSV}>📋 ユーザー情報をDL</button>
                         <button className="btn btn-secondary btn-small" onClick={downloadUserTemplate}>📄 CSVテンプレート</button>
                         <label className="btn btn-secondary btn-small" style={{ cursor: 'pointer' }}>
                             📥 CSV一括登録
@@ -470,6 +497,17 @@ export default function AdminPage() {
                         <form onSubmit={handleSaveAnnouncement}>
                             <div className="form-group"><label>📅 配信日</label><input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} required /></div>
                             <div className="form-group"><label>タイトル</label><input type="text" placeholder="例: 年始のご挨拶" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} required /></div>
+                            <div className="form-group">
+                                <label>お知らせ内容 (メッセージ)</label>
+                                <textarea
+                                    className="form-textarea"
+                                    rows="4"
+                                    placeholder="表示するメッセージを入力してください"
+                                    value={formContent}
+                                    onChange={(e) => setFormContent(e.target.value)}
+                                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
+                                ></textarea>
+                            </div>
 
                             <div className="form-group">
                                 <label>🏫 対象教室</label>

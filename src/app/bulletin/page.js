@@ -168,17 +168,44 @@ export default function BulletinPage() {
                             </div>
                             <div className="announcement-list">
                                 {group.items.sort((a, b) => b.day - a.day).map((item) => (
-                                    <div key={item.id} className="announcement-item" onClick={() => openPdf(item)}>
+                                    <div key={item.id} className="announcement-item">
                                         <div className="announcement-main">
                                             <span className="announcement-date">{item.month}/{item.day}</span>
                                             <span className="announcement-title">{item.title}</span>
-                                            {item.pdfUrl && <span className="pdf-icon">📄</span>}
                                         </div>
-                                        {item.schools?.length > 0 && (
-                                            <div className="school-tags">
-                                                {item.schools.map(s => <span key={s} className="school-tag" style={{ backgroundColor: getSchoolColor(s) }}>{getSchoolName(s)}</span>)}
+                                        {item.content && (
+                                            <div className="announcement-content" style={{
+                                                fontSize: '0.9rem',
+                                                padding: '10px',
+                                                backgroundColor: 'rgba(0,0,0,0.03)',
+                                                borderRadius: '8px',
+                                                marginTop: '8px',
+                                                whiteSpace: 'pre-wrap'
+                                            }}>
+                                                {item.content}
                                             </div>
                                         )}
+                                        <div className="announcement-footer" style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div className="school-tags">
+                                                {item.schools?.length > 0 ? item.schools.map(s => <span key={s} className="school-tag" style={{ backgroundColor: getSchoolColor(s) }}>{getSchoolName(s)}</span>) : <span className="school-tag" style={{ backgroundColor: '#999' }}>全教室</span>}
+                                            </div>
+                                            {item.pdfUrl && (
+                                                <a
+                                                    href={item.pdfUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="btn btn-small btn-primary"
+                                                    onClick={() => {
+                                                        fetch('/api/logs', {
+                                                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({ userId: session?.userId, action: 'view_pdf', details: `PDF閲覧: ${item.title}` })
+                                                        }).catch(() => { });
+                                                    }}
+                                                >
+                                                    📄 PDFを開く
+                                                </a>
+                                            )}
+                                        </div>
                                     </div>
                                 ))}
                             </div>

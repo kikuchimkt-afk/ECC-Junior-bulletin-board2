@@ -206,6 +206,36 @@ export default function AdminPage() {
         }
     };
 
+    const handleResendNotification = async (announcement) => {
+        if (!confirm(`「${announcement.title}」の通知メールを再送信しますか？\n（対象の教室に所属するユーザー全員に送信されます）`)) return;
+
+        setSending(true);
+        try {
+            const res = await fetch('/api/notify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    announcement,
+                    targetSchools: announcement.schools || []
+                })
+            });
+            const data = await res.json();
+
+            if (data.error) {
+                alert(`✉️ 送信失敗: ${data.error}`);
+            } else if (data.sent > 0) {
+                alert(`✉️ メール通知を${data.sent}件再送信しました`);
+            } else if (data.message) {
+                alert(`✉️ ${data.message}`);
+            }
+        } catch (error) {
+            console.error('Resend error:', error);
+            alert('再送信中にエラーが発生しました');
+        } finally {
+            setSending(false);
+        }
+    };
+
     // ========== ユーザー関連 ==========
     const openAddUserModal = () => {
         setEditingUser(null);
@@ -429,7 +459,9 @@ export default function AdminPage() {
                                             {item.schools?.length > 0 ? item.schools.map(s => <span key={s} className="school-tag" style={{ backgroundColor: getSchoolColor(s) }}>{getSchoolName(s)}</span>) : <span className="school-tag" style={{ backgroundColor: '#999' }}>全教室</span>}
                                         </div>
                                         <div className="card-actions">
-                                            {item.pdfUrl && <a href={item.pdfUrl} target="_blank" rel="noopener noreferrer" className="btn-edit">PDF</a>}
+                                            <button className="btn-resend" onClick={() => handleResendNotification(item)} disabled={sending} style={{ backgroundColor: '#FFD7E0', color: '#D81B60', border: 'none', padding: '5px 12px', borderRadius: '20px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 'bold' }}>
+                                                {sending ? '...' : '✉️ 再送'}
+                                            </button>
                                             <button className="btn-edit" onClick={() => openEditModal(item)}>編集</button>
                                             <button className="btn-delete" onClick={() => handleDeleteAnnouncement(item.id)}>削除</button>
                                         </div>

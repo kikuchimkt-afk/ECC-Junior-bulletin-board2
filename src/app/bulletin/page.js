@@ -16,6 +16,7 @@ export default function BulletinPage() {
     const [announcements, setAnnouncements] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedSchools, setSelectedSchools] = useState([]);
+    const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
 
     useEffect(() => {
         const sessionData = sessionStorage.getItem('ecc_session');
@@ -168,43 +169,16 @@ export default function BulletinPage() {
                             </div>
                             <div className="announcement-list">
                                 {group.items.sort((a, b) => b.day - a.day).map((item) => (
-                                    <div key={item.id} className="announcement-item">
+                                    <div key={item.id} className="announcement-item" onClick={() => setSelectedAnnouncement(item)} style={{ cursor: 'pointer' }}>
                                         <div className="announcement-main">
                                             <span className="announcement-date">{item.month}/{item.day}</span>
                                             <span className="announcement-title">{item.title}</span>
                                         </div>
-                                        {item.content && (
-                                            <div className="announcement-content" style={{
-                                                fontSize: '0.9rem',
-                                                padding: '10px',
-                                                backgroundColor: 'rgba(0,0,0,0.03)',
-                                                borderRadius: '8px',
-                                                marginTop: '8px',
-                                                whiteSpace: 'pre-wrap'
-                                            }}>
-                                                {item.content}
-                                            </div>
-                                        )}
-                                        <div className="announcement-footer" style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div className="announcement-footer" style={{ marginTop: '5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <div className="school-tags">
                                                 {item.schools?.length > 0 ? item.schools.map(s => <span key={s} className="school-tag" style={{ backgroundColor: getSchoolColor(s) }}>{getSchoolName(s)}</span>) : <span className="school-tag" style={{ backgroundColor: '#999' }}>全教室</span>}
                                             </div>
-                                            {item.pdfUrl && (
-                                                <a
-                                                    href={item.pdfUrl}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="btn btn-small btn-primary"
-                                                    onClick={() => {
-                                                        fetch('/api/logs', {
-                                                            method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                                            body: JSON.stringify({ userId: session?.userId, action: 'view_pdf', details: `PDF閲覧: ${item.title}` })
-                                                        }).catch(() => { });
-                                                    }}
-                                                >
-                                                    📄 PDFを開く
-                                                </a>
-                                            )}
+                                            <span style={{ fontSize: '0.8rem', color: '#888' }}>詳細を表示 ＞</span>
                                         </div>
                                     </div>
                                 ))}
@@ -213,6 +187,56 @@ export default function BulletinPage() {
                     ))
                 )}
             </main>
+
+            {/* お知らせ詳細モーダル */}
+            {selectedAnnouncement && (
+                <div className="modal-overlay show" onClick={() => setSelectedAnnouncement(null)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+                        <button className="modal-close" onClick={() => setSelectedAnnouncement(null)}>&times;</button>
+                        <div style={{ marginBottom: '20px' }}>
+                            <span className="announcement-date" style={{ display: 'inline-block', marginBottom: '10px' }}>
+                                {selectedAnnouncement.year}年{selectedAnnouncement.month}月{selectedAnnouncement.day}日 配信
+                            </span>
+                            <h2 style={{ fontSize: '1.4rem', color: '#5D5D5D', lineHeight: '1.4' }}>{selectedAnnouncement.title}</h2>
+                        </div>
+
+                        <div className="announcement-content" style={{
+                            padding: '20px',
+                            backgroundColor: '#F9F9F9',
+                            borderRadius: '12px',
+                            marginBottom: '25px',
+                            whiteSpace: 'pre-wrap',
+                            lineHeight: '1.8',
+                            color: '#444',
+                            border: '1px solid #eee'
+                        }}>
+                            {selectedAnnouncement.content || '詳細メッセージはありません。'}
+                        </div>
+
+                        <div style={{ textAlign: 'center' }}>
+                            {selectedAnnouncement.pdfUrl ? (
+                                <a
+                                    href={selectedAnnouncement.pdfUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="btn btn-primary"
+                                    style={{ width: '100%', padding: '15px' }}
+                                    onClick={() => {
+                                        fetch('/api/logs', {
+                                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ userId: session?.userId, action: 'view_pdf', details: `PDF閲覧: ${selectedAnnouncement.title}` })
+                                        }).catch(() => { });
+                                    }}
+                                >
+                                    📄 PDFの内容を確認する
+                                </a>
+                            ) : (
+                                <p style={{ color: '#888' }}>PDFファイルはありません。</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

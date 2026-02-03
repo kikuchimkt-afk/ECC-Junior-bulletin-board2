@@ -52,13 +52,21 @@ export async function DELETE(request, { params }) {
         // 既存データ取得
         let announcements = await kv.get('announcements') || [];
 
+        // 対象が存在するか確認
+        const targetId = parseInt(id);
+        const exists = announcements.some(a => a.id === targetId);
+
+        if (!exists) {
+            return NextResponse.json({ error: '削除対象のお知らせが見つかりません' }, { status: 404 });
+        }
+
         // 対象を削除
-        announcements = announcements.filter(a => a.id !== parseInt(id));
+        const filtered = announcements.filter(a => a.id !== targetId);
 
         // 保存
-        await kv.set('announcements', announcements);
+        await kv.set('announcements', filtered);
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, count: filtered.length });
     } catch (error) {
         console.error('Delete announcement error:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });

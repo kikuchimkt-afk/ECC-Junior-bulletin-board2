@@ -191,9 +191,19 @@ export default function AdminPage() {
     };
 
     const handleDeleteAnnouncement = async (id) => {
-        if (!confirm('このお知らせを削除しますか？')) return;
-        try { await fetch(`/api/announcements/${id}`, { method: 'DELETE' }); loadAnnouncements(); }
-        catch (error) { console.error('Delete announcement error:', error); }
+        if (!confirm('このお知らせをお知らせ一覧から完全に削除しますか？')) return;
+        try {
+            const res = await fetch(`/api/announcements/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (res.ok) {
+                loadAnnouncements();
+            } else {
+                alert(`削除に失敗しました: ${data.error || '不明なエラー'}`);
+            }
+        } catch (error) {
+            console.error('Delete announcement error:', error);
+            alert('削除中にエラーが発生しました');
+        }
     };
 
     // ========== ユーザー関連 ==========

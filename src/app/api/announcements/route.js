@@ -14,8 +14,9 @@ export async function GET() {
         // KVからお知らせ一覧を取得
         let announcements = await kv.get('announcements');
 
-        // 初回起動時は初期データを設定
-        if (!announcements || announcements.length === 0) {
+        // 明示的にnull（未設定）の場合のみ初期データを設定
+        // 空配列 [] の場合は「0件のお知らせがある」という正常な状態として扱う
+        if (announcements === null) {
             await kv.set('announcements', DEFAULT_ANNOUNCEMENTS);
             announcements = DEFAULT_ANNOUNCEMENTS;
         }

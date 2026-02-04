@@ -471,6 +471,7 @@ export default function AdminPage() {
             <nav className="nav-bar">
                 <div className="user-info">
                     <span>👤 {session?.name}</span>
+                    <Link href="/manual" className="btn btn-small btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>📖 マニュアル</Link>
                     <Link href="/bulletin" className="btn btn-small btn-secondary">掲示板</Link>
                     <button onClick={handleLogout} className="btn btn-small btn-danger">ログアウト</button>
                 </div>

@@ -231,9 +231,20 @@ export default function BulletinPage() {
                             whiteSpace: 'pre-wrap',
                             lineHeight: '1.8',
                             color: '#444',
-                            border: '1px solid #eee'
+                            border: '1px solid #eee',
+                            wordBreak: 'break-all'
                         }}>
-                            {selectedAnnouncement.content || '詳細メッセージはありません。'}
+                            {(() => {
+                                const content = selectedAnnouncement.content || '詳細メッセージはありません。';
+                                const urlRegex = /(https?:\/\/[^\s]+)/g;
+                                const parts = content.split(urlRegex);
+                                return parts.map((part, i) => {
+                                    if (part.match(urlRegex)) {
+                                        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: '#0070f3', textDecoration: 'underline' }}>{part}</a>;
+                                    }
+                                    return part;
+                                });
+                            })()}
                         </div>
 
                         <div style={{ textAlign: 'center' }}>

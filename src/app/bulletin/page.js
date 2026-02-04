@@ -175,7 +175,14 @@ export default function BulletinPage() {
                                     <div key={item.id} className="announcement-item" onClick={() => setSelectedAnnouncement(item)} style={{ cursor: 'pointer' }}>
                                         <div className="announcement-main" style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap', width: '100%' }}>
                                             <span className="announcement-date">{item.month}/{item.day}</span>
-                                            <span className="announcement-title" style={{ flex: '0 1 auto' }}>{item.title}</span>
+                                            <span className="announcement-title" style={{ flex: '0 1 auto' }}>
+                                                {item.title}
+                                                {item.teacherOnly && (
+                                                    <span className="school-tag" style={{ marginLeft: '10px', backgroundColor: '#FFD7E0', color: '#D81B60', fontWeight: 'bold' }}>
+                                                        🔒 講師限定
+                                                    </span>
+                                                )}
+                                            </span>
                                             <div className="school-tags" style={{ marginTop: '0', marginLeft: 'auto' }}>
                                                 {item.schools?.length > 0 ? item.schools.map(s => <span key={s} className="school-tag" style={{ backgroundColor: getSchoolColor(s) }}>{getSchoolName(s)}</span>) : <span className="school-tag" style={{ backgroundColor: '#999' }}>全教室</span>}
                                             </div>
@@ -197,7 +204,23 @@ export default function BulletinPage() {
                             <span className="announcement-date" style={{ display: 'inline-block', marginBottom: '10px' }}>
                                 {selectedAnnouncement.year}年{selectedAnnouncement.month}月{selectedAnnouncement.day}日 配信
                             </span>
-                            <h2 style={{ fontSize: '1.4rem', color: '#5D5D5D', lineHeight: '1.4' }}>{selectedAnnouncement.title}</h2>
+                            <h2 style={{ fontSize: '1.4rem', color: '#5D5D5D', lineHeight: '1.4' }}>
+                                {selectedAnnouncement.title}
+                                {selectedAnnouncement.teacherOnly && (
+                                    <span style={{
+                                        marginLeft: '10px',
+                                        backgroundColor: '#FFD7E0',
+                                        color: '#D81B60',
+                                        padding: '4px 10px',
+                                        borderRadius: '12px',
+                                        fontSize: '0.8rem',
+                                        fontWeight: 'bold',
+                                        verticalAlign: 'middle'
+                                    }}>
+                                        🔒 講師限定
+                                    </span>
+                                )}
+                            </h2>
                         </div>
 
                         <div className="announcement-content" style={{

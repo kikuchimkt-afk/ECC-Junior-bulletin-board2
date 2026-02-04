@@ -456,7 +456,19 @@ export default function AdminPage() {
                                     <div className="card-item-header">
                                         <span className="card-date">{item.month}/{item.day}</span>
                                         <span className="card-title">{item.title}</span>
-                                        {item.teacherOnly && <span style={{ marginLeft: '10px', fontSize: '1.2rem' }}>🔒</span>}
+                                        {item.teacherOnly && (
+                                            <span style={{
+                                                marginLeft: '10px',
+                                                backgroundColor: '#FFD7E0',
+                                                color: '#D81B60',
+                                                padding: '2px 8px',
+                                                borderRadius: '10px',
+                                                fontSize: '0.75rem',
+                                                fontWeight: 'bold'
+                                            }}>
+                                                🔒 講師限定
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="card-item-body">
                                         <div className="school-tags">

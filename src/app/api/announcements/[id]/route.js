@@ -28,7 +28,8 @@ export async function PUT(request, { params }) {
             title: title || announcements[index].title,
             content: body.content !== undefined ? body.content : announcements[index].content,
             pdfUrl: pdfUrl !== undefined ? pdfUrl : announcements[index].pdfUrl,
-            schools: body.schools !== undefined ? body.schools : announcements[index].schools
+            schools: body.schools !== undefined ? body.schools : announcements[index].schools,
+            teacherOnly: body.teacherOnly !== undefined ? !!body.teacherOnly : announcements[index].teacherOnly
         };
 
         // 保存

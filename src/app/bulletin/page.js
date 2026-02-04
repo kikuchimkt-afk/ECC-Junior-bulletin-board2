@@ -84,6 +84,9 @@ export default function BulletinPage() {
 
     // フィルタリング
     const filteredAnnouncements = announcements.filter(item => {
+        // 講師・管理者でない場合は講師限定を除外
+        if (item.teacherOnly && !session?.isTeacher && !session?.isAdmin) return false;
+
         if (selectedSchools.length === 0) return true;
         if (!item.schools || item.schools.length === 0) return true;
         return item.schools.some(s => selectedSchools.includes(s));

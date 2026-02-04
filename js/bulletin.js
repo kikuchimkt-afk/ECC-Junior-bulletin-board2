@@ -57,8 +57,8 @@ async function renderAnnouncements() {
 
     // 認証情報を取得してフィルタリング
     const session = Auth.getSession();
-    if (!session || !session.isAdmin) {
-        // 管理者でない場合は「講師限定」を除外
+    if (!session || (!session.isAdmin && !session.isTeacher)) {
+        // 管理者・講師でない場合は「講師限定」を除外
         announcements = announcements.filter(item => !item.teacherOnly);
     }
 

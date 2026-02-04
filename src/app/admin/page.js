@@ -25,6 +25,7 @@ export default function AdminPage() {
     const [formPdfUrl, setFormPdfUrl] = useState('');
     const [selectedFileName, setSelectedFileName] = useState('');
     const [formSchools, setFormSchools] = useState([]);
+    const [formTeacherOnly, setFormTeacherOnly] = useState(false);
 
     // ユーザーフォーム状態
     const [userFormId, setUserFormId] = useState('');
@@ -96,6 +97,7 @@ export default function AdminPage() {
         setFormPdfUrl('');
         setSelectedFileName('');
         setFormSchools([]);
+        setFormTeacherOnly(false);
         setShowModal(true);
     };
 
@@ -107,6 +109,7 @@ export default function AdminPage() {
         setFormPdfUrl(announcement.pdfUrl || '');
         setSelectedFileName(announcement.pdfUrl ? 'アップロード済み' : '');
         setFormSchools(announcement.schools || []);
+        setFormTeacherOnly(!!announcement.teacherOnly);
         setShowModal(true);
     };
 
@@ -147,14 +150,14 @@ export default function AdminPage() {
             if (editingAnnouncement) {
                 const res = await fetch(`/api/announcements/${editingAnnouncement.id}`, {
                     method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ year, month, day, title: formTitle, content: formContent, pdfUrl: formPdfUrl, schools: formSchools })
+                    body: JSON.stringify({ year, month, day, title: formTitle, content: formContent, pdfUrl: formPdfUrl, schools: formSchools, teacherOnly: formTeacherOnly })
                 });
                 const data = await res.json();
                 savedAnnouncement = data.announcement;
             } else {
                 const res = await fetch('/api/announcements', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ year, month, day, title: formTitle, content: formContent, pdfUrl: formPdfUrl, schools: formSchools })
+                    body: JSON.stringify({ year, month, day, title: formTitle, content: formContent, pdfUrl: formPdfUrl, schools: formSchools, teacherOnly: formTeacherOnly })
                 });
                 const data = await res.json();
                 savedAnnouncement = data.announcement;
@@ -453,6 +456,7 @@ export default function AdminPage() {
                                     <div className="card-item-header">
                                         <span className="card-date">{item.month}/{item.day}</span>
                                         <span className="card-title">{item.title}</span>
+                                        {item.teacherOnly && <span style={{ marginLeft: '10px', fontSize: '1.2rem' }}>🔒</span>}
                                     </div>
                                     <div className="card-item-body">
                                         <div className="school-tags">
@@ -576,6 +580,19 @@ export default function AdminPage() {
                                     <div className="file-input-label"><span>{uploading ? 'アップロード中...' : '📁 ファイル選択'}</span></div>
                                 </div>
                                 {selectedFileName && <div className="selected-file show">{selectedFileName}</div>}
+                            </div>
+
+                            <div className="form-group" style={{ marginBottom: '20px' }}>
+                                <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={formTeacherOnly}
+                                        onChange={(e) => setFormTeacherOnly(e.target.checked)}
+                                        style={{ width: '20px', height: '20px' }}
+                                    />
+                                    <span style={{ fontWeight: 'bold' }}>🔒 講師限定 (管理者・講師のみ表示)</span>
+                                </label>
+                                <small style={{ color: '#888', display: 'block', marginTop: '4px' }}>※業務連絡など講師間でのみ共有する場合に使用します</small>
                             </div>
 
                             {!editingAnnouncement && (

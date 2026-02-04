@@ -71,7 +71,8 @@ export async function POST(request) {
             },
             body: JSON.stringify({
                 sender: { name: fromName, email: fromEmail },
-                to: recipients,
+                to: [{ email: fromEmail, name: fromName }], // 送信元を宛先に設定
+                bcc: recipients, // 全ユーザーをBCCに設定
                 subject: `【ECC】${announcement.title}`,
                 htmlContent: `
                     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">

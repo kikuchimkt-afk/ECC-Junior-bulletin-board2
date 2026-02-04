@@ -23,9 +23,11 @@ export async function GET() {
 
         // 日付順にソート（新しい順）
         announcements.sort((a, b) => {
-            const dateA = new Date(a.year, a.month - 1, a.day);
-            const dateB = new Date(b.year, b.month - 1, b.day);
-            return dateB - dateA;
+            const dateA = new Date(a.year, a.month - 1, a.day).getTime();
+            const dateB = new Date(b.year, b.month - 1, b.day).getTime();
+            if (dateB !== dateA) return dateB - dateA;
+            // 同じ日付の場合はID（タイムスタンプ）が新しい順
+            return (b.id || 0) - (a.id || 0);
         });
 
         return NextResponse.json({ announcements });

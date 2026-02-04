@@ -66,7 +66,8 @@ export async function POST(request) {
             title,
             content: body.content || '',
             pdfUrl: pdfUrl || '',
-            schools: body.schools || []
+            schools: body.schools || [],
+            teacherOnly: !!body.teacherOnly
         };
 
         announcements.push(newAnnouncement);

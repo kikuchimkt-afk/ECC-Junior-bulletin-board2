@@ -54,7 +54,7 @@ async function loadAnnouncementsList() {
 
     tbody.innerHTML = announcements.map(item => `
         <tr>
-            <td>${item.year}年${item.month}月${item.day}日</td>
+            <td>${item.year}年${item.month}月${item.day}日${item.teacherOnly ? ' <span style="background:var(--danger-color); color:white; padding:2px 6px; border-radius:4px; font-size:10px; margin-left:5px;">🔒 講師限定</span>' : ''}</td>
             <td>${item.title}</td>
             <td><a href="${item.pdfUrl || item.pdfPath}" target="_blank">📄 表示</a></td>
             <td class="actions">
@@ -90,6 +90,10 @@ function showAnnouncementModal(announcement = null) {
         form.title.value = announcement.title;
         form.content.value = announcement.content || '';
         pdfPathInput.value = announcement.pdfPath || announcement.pdfUrl;
+
+        // 講師限定フラグをセット
+        const teacherOnlyCheckbox = document.getElementById('teacherOnlyCheckbox');
+        if (teacherOnlyCheckbox) teacherOnlyCheckbox.checked = !!announcement.teacherOnly;
 
         // 既存PDFパスを表示
         const currentPath = announcement.pdfUrl || announcement.pdfPath;
@@ -139,7 +143,8 @@ async function saveAnnouncement(event) {
         day: day,
         title: form.title.value.trim(),
         content: form.content.value.trim(),
-        pdfUrl: pdfPath
+        pdfUrl: pdfPath,
+        teacherOnly: form.teacherOnly.checked
     };
 
     try {

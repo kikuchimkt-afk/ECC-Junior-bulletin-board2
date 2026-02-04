@@ -53,7 +53,14 @@ async function renderAnnouncements() {
     const container = document.getElementById('announcements-container');
     if (!container) return;
 
-    const announcements = await DB.getAllAnnouncements();
+    let announcements = await DB.getAllAnnouncements();
+
+    // 認証情報を取得してフィルタリング
+    const session = Auth.getSession();
+    if (!session || !session.isAdmin) {
+        // 管理者でない場合は「講師限定」を除外
+        announcements = announcements.filter(item => !item.teacherOnly);
+    }
 
     if (announcements.length === 0) {
         container.innerHTML = `

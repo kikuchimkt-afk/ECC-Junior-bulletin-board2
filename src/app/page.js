@@ -43,6 +43,8 @@ export default function LoginPage() {
                 userId: result.user.userId,
                 name: result.user.name,
                 isAdmin: result.user.isAdmin,
+                isTeacher: result.user.isTeacher,
+                schools: result.user.schools,
                 loginTime: new Date().toISOString()
             };
             sessionStorage.setItem('ecc_session', JSON.stringify(session));

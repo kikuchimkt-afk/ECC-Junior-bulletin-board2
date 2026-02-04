@@ -305,9 +305,9 @@ export default function AdminPage() {
     // CSVテンプレート
     const downloadUserTemplate = () => {
         const bom = '\uFEFF';
-        const headers = ['ユーザーID', 'パスワード', '名前', 'メールアドレス', '講師(1=はい)', '所属教室'];
-        const example = ['user003', 'pass003', '山田 花子', 'yamada@example.com', '0', 'aizumi-jr,aizumi-bo'];
-        const csvContent = bom + [headers, example].map(row => row.join(',')).join('\n');
+        const headers = ['ユーザーID', 'パスワード', '名前', 'メールアドレス', '管理者(1=はい)', '講師(1=はい)', '所属教室'];
+        const example = ['user003', 'pass003', '山田 花子', 'yamada@example.com', '0', '0', 'aizumi-jr,aizumi-bo'];
+        const csvContent = bom + [headers, example].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -348,26 +348,64 @@ export default function AdminPage() {
                 const text = event.target.result;
                 const lines = text.split(/\r?\n/).filter(line => line.trim());
                 if (lines.length < 2) { alert('データがありません'); return; }
+
+                // 堅牢なCSVパース (引用符対応)
+                const parseCSVLine = (line) => {
+                    const result = [];
+                    let cur = '', inQuotes = false;
+                    for (let i = 0; i < line.length; i++) {
+                        const char = line[i];
+                        if (char === '"') {
+                            if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+                            else { inQuotes = !inQuotes; }
+                        } else if (char === ',' && !inQuotes) {
+                            result.push(cur.trim()); cur = '';
+                        } else { cur += char; }
+                    }
+                    result.push(cur.trim());
+                    return result;
+                };
+
                 const dataLines = lines.slice(1);
                 let successCount = 0, errorCount = 0;
                 const errors = [];
+
                 for (const line of dataLines) {
-                    const parts = line.match(/("?[^"]*"?|[^,]+)/g)?.map(p => p.replace(/^"|"$/g, '').trim()) || [];
-                    if (parts.length < 3) { errorCount++; errors.push(`無効な行: ${line}`); continue; }
-                    const [id, password, name, email, isTeacherStr, schoolsStr] = parts;
-                    if (!id || !password || !name) { errorCount++; errors.push(`必須項目が空: ${line}`); continue; }
-                    const isTeacher = isTeacherStr === '1';
+                    const parts = parseCSVLine(line);
+                    if (parts.length < 5) { errorCount++; errors.push(`列数が不足しています: ${line}`); continue; }
+
+                    let id, password, name, email, isAdmin, isTeacher, schoolsStr;
+
+                    if (parts.length >= 7) {
+                        // 7列形式 (ID, Pass, Name, Email, Admin, Teacher, Schools)
+                        [id, password, name, email, isAdmin, isTeacher, schoolsStr] = parts;
+                        isAdmin = isAdmin === '1';
+                        isTeacher = isTeacher === '1';
+                    } else {
+                        // 6列形式 (ID, Pass, Name, Email, Teacher, Schools) - 過去のテンプレート互換
+                        [id, password, name, email, isTeacher, schoolsStr] = parts;
+                        isAdmin = false;
+                        isTeacher = isTeacher === '1';
+                    }
+
+                    if (!id || !password || !name) { errorCount++; errors.push(`必須項目が空: ${id || '不正な行'}`); continue; }
                     const schools = schoolsStr ? schoolsStr.split(',').map(s => s.trim()).filter(s => s) : [];
+
                     try {
                         const response = await fetch('/api/users', {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ id, password, name, email: email || '', isAdmin: false, isTeacher, schools })
+                            body: JSON.stringify({ id, password, name, email: email || '', isAdmin, isTeacher, schools })
                         });
-                        if (response.ok) { successCount++; } else { const result = await response.json(); errorCount++; errors.push(`${id}: ${result.error}`); }
+                        if (response.ok) { successCount++; }
+                        else { const result = await response.json(); errorCount++; errors.push(`${id}: ${result.error}`); }
                     } catch (err) { errorCount++; errors.push(`${id}: エラー`); }
                 }
+
                 let message = `インポート完了\n成功: ${successCount}件`;
-                if (errorCount > 0) { message += `\n失敗: ${errorCount}件\n\n${errors.slice(0, 5).join('\n')}`; if (errors.length > 5) message += `\n...他${errors.length - 5}件`; }
+                if (errorCount > 0) {
+                    message += `\n失敗: ${errorCount}件\n\nエラー詳細 (先頭5件):\n${errors.slice(0, 5).join('\n')}`;
+                    if (errors.length > 5) message += `\n...他${errors.length - 5}件`;
+                }
                 alert(message);
                 loadUsers();
             } catch (error) { console.error('CSV import error:', error); alert('CSVの読み込みに失敗しました'); }
